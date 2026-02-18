@@ -4,10 +4,10 @@ name: ai-config-bundle
 # default setup didn't pick up. Make it explicit for advanced setup.
 paths:
   - .github
-  - install_bundle.py
   - scripts
   - payload/.cursor/hooks
   - payload/.config/opencode/plugins
+  - .
 
 paths-ignore:
   - "**/__pycache__/**"
