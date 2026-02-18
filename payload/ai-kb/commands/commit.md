@@ -8,14 +8,14 @@ description: "(Custom) Commits local changes in atomic commits. Args: [additiona
 
 ## Input
 
-$ARGUMENTS
-- Treat `$ARGUMENTS` as the user's actual commit request and constraints for this invocation.
-- If `$ARGUMENTS` is ambiguous or conflicts with other context, use the `question` tool to clarify per `~/ai-kb/AGENTS.md`
+Command input (text after the command name)
+
+- Treat it as the user's actual commit request and constraints for this invocation.
+- If the input is ambiguous or conflicts with other context, use the `question` tool per `~/ai-kb/AGENTS.md`
 
 ## Before Starting
 
 - Follow `~/ai-kb/AGENTS.md` operational loop (`<rule_context>` required)
-- Follow parallel execution policy in AGENTS.md (offload heavy work, keep main thread light)
 - Load and follow `~/ai-kb/rules/command-orchestration.md` (bundle: `commit`)
 
 ## Instructions

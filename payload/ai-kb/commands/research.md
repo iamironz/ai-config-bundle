@@ -12,17 +12,15 @@ Perform deep research on a topic using all available MCP tools before synthesizi
 
 ## Input
 
-$ARGUMENTS
+Command input (text after the command name)
 
-- Treat `$ARGUMENTS` as the research query.
-- Use it to drive keyword matching for `~/ai-kb/rules/INDEX.md` and rule loading.
+- Treat it as the research query and constraints for this invocation.
 
 ---
 
 ## Before Starting
 
 - Follow `~/ai-kb/AGENTS.md` operational loop (`<rule_context>` required)
-- Follow parallel execution policy in AGENTS.md (offload heavy work, keep main thread light)
 - Load and follow `~/ai-kb/rules/command-orchestration.md` (bundle: `research`)
 - Read project docs (`doc/`, `AGENTS.md`) before starting
 - Load `~/ai-kb/rules/mcp-research.md` to guide tool selection

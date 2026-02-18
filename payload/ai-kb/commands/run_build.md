@@ -12,17 +12,15 @@ Compile and build the project, resolving any build errors.
 
 ## Input
 
-$ARGUMENTS
+Command input (text after the command name)
 
-- This is the command-specific request; do not ignore it.
-- Use it to drive keyword matching for `~/ai-kb/rules/INDEX.md` and rule loading.
+- Treat it as the request and constraints for this invocation.
 
 ---
 
 ## Before Starting
 
 - Follow `~/ai-kb/AGENTS.md` operational loop (`<rule_context>` required)
-- Follow parallel execution policy in AGENTS.md (offload heavy work, keep main thread light)
 - Load and follow `~/ai-kb/rules/command-orchestration.md` (bundle: `run_build`)
 - Read project docs (`doc/`, `AGENTS.md`) before running builds
 - Focus rules: `architecture.md`, `code-quality.md`; language rules via INDEX

@@ -12,17 +12,15 @@ Implement a new feature or enhancement following architecture principles and glo
 
 ## Input
 
-$ARGUMENTS
+Command input (text after the command name)
 
-- This is the command-specific request; do not ignore it.
-- Use it to drive keyword matching for `~/ai-kb/rules/INDEX.md` and rule loading.
+- Treat it as the request and constraints for this invocation.
 
 ---
 
 ## Before Starting
 
 - Follow `~/ai-kb/AGENTS.md` operational loop (`<rule_context>` required)
-- Follow parallel execution policy in AGENTS.md (offload heavy work, keep main thread light)
 - Load and follow `~/ai-kb/rules/command-orchestration.md` (bundle: `implement_feature`)
 - Read project docs (`doc/`, `AGENTS.md`) before changes
 - If research is needed, load and follow `~/ai-kb/rules/mcp-research.md` for tool selection

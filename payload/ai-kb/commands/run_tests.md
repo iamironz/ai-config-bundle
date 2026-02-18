@@ -12,22 +12,20 @@ Execute tests and analyze results, fixing any failures.
 
 ## Input
 
-$ARGUMENTS
+Command input (text after the command name)
 
-- This is the command-specific request; do not ignore it.
-- Use it to drive keyword matching for `~/ai-kb/rules/INDEX.md` and rule loading.
+- Treat it as the request and constraints for this invocation.
 
 ---
 
 ## Before Starting
 
 - Follow `~/ai-kb/AGENTS.md` operational loop (`<rule_context>` required)
-- Follow parallel execution policy in AGENTS.md (offload heavy work, keep main thread light)
 - Load and follow `~/ai-kb/rules/command-orchestration.md` (bundle: `run_tests`)
 - Read project docs (`doc/`, `AGENTS.md`) before changes
-- Focus rules: `tdd.md`, `test-structure.md`, `testing/execution.md`, `code-quality.md`; platform testing rules via INDEX
+- Focus rules: `tdd.md`, `testing/structure.md`, `testing/execution.md`, `code-quality.md`; platform testing rules via INDEX
 - Follow `testing/execution.md` for UI instrumentation/E2E selection and scoping
-  - Use runner args to scope (NOT `--tests`): `-Pandroid.testInstrumentationRunnerArguments.class=com.foo.MyTest`
+  - For Android runner args and `connectedAndroidTest` scoping, see `~/ai-kb/rules/android/testing.md`
 
 ---
 

@@ -12,20 +12,18 @@ Write tests for existing or new functionality following TDD principles and globa
 
 ## Input
 
-$ARGUMENTS
+Command input (text after the command name)
 
-- This is the command-specific request; do not ignore it.
-- Use it to drive keyword matching for `~/ai-kb/rules/INDEX.md` and rule loading.
+- Treat it as the request and constraints for this invocation.
 
 ---
 
 ## Before Starting
 
 - Follow `~/ai-kb/AGENTS.md` operational loop (`<rule_context>` required)
-- Follow parallel execution policy in AGENTS.md (offload heavy work, keep main thread light)
 - Load and follow `~/ai-kb/rules/command-orchestration.md` (bundle: `implement_tests`)
 - Read project docs (`doc/`, `AGENTS.md`) before changes
-- Focus rules: `tdd.md`, `test-structure.md`, `testing/execution.md`, `code-quality.md`; platform testing rules via INDEX
+- Focus rules: `tdd.md`, `testing/structure.md`, `testing/execution.md`, `code-quality.md`; platform testing rules via INDEX
 - Follow `testing/execution.md` for UI instrumentation/E2E requirements (Android: `androidTest`, `:androidApp:connectedAndroidTest`)
 
 ---
@@ -68,16 +66,10 @@ $ARGUMENTS
 
 **Run tests immediately after creation →**
 - Follow `testing/execution.md` for scope selection and reporting
-- If Android UI tests are involved, run `:androidApp:connectedAndroidTest` (use runner args below)
+- If Android UI/instrumentation tests are involved: launch emulator/device and follow `~/ai-kb/rules/android/testing.md` for `connectedAndroidTest` scoping (runner args)
 
 **If new test utilities created →** document in test README
 
 **If mocks added →** verify they match real implementation contracts
-
-**If UI instrumentation tests changed (Android) →** launch emulator/device and run the target class(es) via `:androidApp:connectedAndroidTest`.
-  - Scope instrumentation tests via runner args (NOT `--tests`):
-    - `./gradlew :androidApp:connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.foo.MyTest,com.foo.OtherTest`
-    - (method) `./gradlew :androidApp:connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.foo.MyTest#myTest`
-  - `--tests` is for JVM tasks (e.g. `:composeApp:jvmTest`, `testDebugUnitTest`), not `connectedAndroidTest`.
 
 **If flaky tests found →** fix root cause, don't just retry

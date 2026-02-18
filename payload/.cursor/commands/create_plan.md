@@ -4,7 +4,7 @@
 
 Use the text the user typed after the command name as the request for this command.
 
-- Treat it as `$ARGUMENTS` for the shared command doc.
+- Treat it as the command input for the shared command doc.
 
 ## Instructions
 

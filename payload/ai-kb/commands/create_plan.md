@@ -12,7 +12,7 @@ Create a plan only after presenting options and gathering feedback. Write the pl
 
 ## Input
 
-$ARGUMENTS
+Command input (text after the command name)
 
 - Provide the planning request and scope.
 - If the request is ambiguous, use the `question` tool to clarify per `~/ai-kb/AGENTS.md`
@@ -23,7 +23,6 @@ $ARGUMENTS
 ## Before Starting
 
 - Follow `~/ai-kb/AGENTS.md` operational loop (`<rule_context>` required)
-- Follow parallel execution policy in AGENTS.md (offload heavy work, keep main thread light)
 - Load and follow `~/ai-kb/rules/command-orchestration.md` (bundle: `create_plan`)
 - Read project docs (`doc/`, `AGENTS.md`) before planning
 - If research is needed, load and follow `~/ai-kb/rules/mcp-research.md` for tool selection

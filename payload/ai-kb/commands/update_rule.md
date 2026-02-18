@@ -8,14 +8,14 @@ description: "(Custom) Update/add/remove/compact rules and review structure. Arg
 
 ## Input
 
-$ARGUMENTS
-- Treat `$ARGUMENTS` as the actual action/targets/constraints for this invocation (e.g., `add`, `update`, `remove`, `compact`, `review`).
-- If `$ARGUMENTS` is missing details, use the `question` tool to clarify per `~/ai-kb/AGENTS.md`
+Command input (text after the command name)
+
+- Treat it as the actual action/targets/constraints for this invocation (e.g., `add`, `update`, `remove`, `compact`, `review`).
+- If the input is missing details, use the `question` tool per `~/ai-kb/AGENTS.md`
 
 ## Before Starting
 
 - Follow `~/ai-kb/AGENTS.md` operational loop (`<rule_context>` required)
-- Follow parallel execution policy in AGENTS.md (offload heavy work, keep main thread light)
 - Load and follow `~/ai-kb/rules/command-orchestration.md` (bundle: `update_rule`)
 - Load and follow `~/ai-kb/rules/kb-maintenance.md` for recommendation-driven updates
 - If present, review `.cursor/kb-recommendations/*.md` and `.opencode/kb-recommendations/*.md`

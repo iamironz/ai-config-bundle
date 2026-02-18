@@ -12,17 +12,15 @@ Diagnose and fix bugs, errors, or unexpected behavior following global KB rules.
 
 ## Input
 
-$ARGUMENTS
+Command input (text after the command name)
 
-- This is the command-specific request; do not ignore it.
-- Use it to drive keyword matching for `~/ai-kb/rules/INDEX.md` and rule loading.
+- Treat it as the request and constraints for this invocation.
 
 ---
 
 ## Before Starting
 
 - Follow `~/ai-kb/AGENTS.md` operational loop (`<rule_context>` required)
-- Follow parallel execution policy in AGENTS.md (offload heavy work, keep main thread light)
 - Load and follow `~/ai-kb/rules/command-orchestration.md` (bundle: `fix_issue`)
 - Read project docs (`doc/`, `AGENTS.md`) before changes
 - Focus rules: `error-handling.md`, `architecture.md`, `code-quality.md`, `thread-safety.md`, `testing/execution.md`
@@ -69,11 +67,7 @@ $ARGUMENTS
 
 **If fix involves concurrency →** verify with stress testing
 
-**If UI instrumentation tests changed (Android) →** launch emulator/device and run the target class(es) via `:androidApp:connectedAndroidTest`.
-  - Scope instrumentation tests via runner args (NOT `--tests`):
-    - `./gradlew :androidApp:connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.foo.MyTest,com.foo.OtherTest`
-    - (method) `./gradlew :androidApp:connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.foo.MyTest#myTest`
-  - `--tests` is for JVM tasks (e.g. `:composeApp:jvmTest`, `testDebugUnitTest`), not `connectedAndroidTest`.
+**If UI instrumentation tests changed (Android) →** launch emulator/device and follow `~/ai-kb/rules/android/testing.md` for `connectedAndroidTest` scoping (runner args).
 
 **If security-related →** verify against `~/ai-kb/rules/security.md` checklist
 

@@ -12,17 +12,15 @@ Analyze runtime behavior, logs, and actual system state to validate correctness.
 
 ## Input
 
-$ARGUMENTS
+Command input (text after the command name)
 
-- This is the command-specific request; do not ignore it.
-- Use it to drive keyword matching for `~/ai-kb/rules/INDEX.md` and rule loading.
+- Treat it as the scenario/logs to analyze and constraints for this invocation.
 
 ---
 
 ## Before Starting
 
 - Follow `~/ai-kb/AGENTS.md` operational loop (`<rule_context>` required)
-- Follow parallel execution policy in AGENTS.md (offload heavy work, keep main thread light)
 - Load and follow `~/ai-kb/rules/command-orchestration.md` (bundle: `validate_runtime`)
 - Read project docs (`doc/`, `AGENTS.md`) before analysis
 - Focus rules: `logging.md`, `error-handling.md`, `thread-safety.md` (plus security via INDEX)

@@ -12,7 +12,7 @@ Execute a previously written plan exactly as specified.
 
 ## Input
 
-$ARGUMENTS
+Command input (text after the command name)
 
 - Provide any constraints; if a plan exists in history above the command, use it.
 - If no plan exists in history above the command, ask the user to rerun `create_plan` using the `question` tool per `~/ai-kb/AGENTS.md`.
@@ -22,7 +22,6 @@ $ARGUMENTS
 ## Before Starting
 
 - Follow `~/ai-kb/AGENTS.md` operational loop (`<rule_context>` required).
-- Follow parallel execution policy in AGENTS.md (offload heavy work, keep main thread light).
 - Load and follow `~/ai-kb/rules/command-orchestration.md` (bundle: `execute_plan`).
 - Read the plan in history above the command in full before acting.
 - Do NOT edit the plan unless explicitly asked.

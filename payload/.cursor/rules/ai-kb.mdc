@@ -4,10 +4,12 @@ alwaysApply: true
 ---
 
 - Shared context index: `~/ai-kb/AGENTS.md`
+- KB layers: `~/ai-kb/rag.md`
 - Rules index: `~/ai-kb/rules/INDEX.md`
 - Commands: `~/ai-kb/commands/`
+- Commands index: `~/ai-kb/commands/INDEX.md`
 
-Always read `~/ai-kb/AGENTS.md` and `~/ai-kb/rules/INDEX.md` before starting tasks.
+Always read `~/ai-kb/AGENTS.md`, `~/ai-kb/rules/INDEX.md`, and `~/ai-kb/commands/INDEX.md` before starting tasks.
 Output `<rule_context>` quoting the rules you will follow, then proceed without pausing.
 All user questions MUST use the `question` tool (no free-text questions).
 Every question must provide single-choice or multi-choice options and allow a custom input option.

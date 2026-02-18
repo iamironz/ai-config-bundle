@@ -1,5 +1,14 @@
 # TDD Cycle
 
+Quick reference for test-driven development. See subdocs for test structure and execution.
+
+## Subdocuments
+
+| Topic | File | Key Content |
+|-------|------|-------------|
+| Test Structure | `testing/structure.md` | AAA pattern, naming, isolation, flaky prevention |
+| Test Execution | `testing/execution.md` | Mandatory test runs + reporting expectations |
+
 ## The Cycle
 
 **RED:** Write failing test first
@@ -63,27 +72,7 @@
 
 ---
 
-## Testing Techniques
-
-### Property-Based Testing
-- Define properties that hold for ALL inputs
-- Framework generates random inputs
-- Example: "reversing twice equals original"
-- Tools: QuickCheck, Hypothesis, FastCheck
-
-### Mutation Testing
-- Validates test quality beyond coverage
-- Mutants that survive = weak tests
-- Focus on critical business logic
-- Run in CI on release branches
-
-### Contract Testing
-- Define expected API interactions
-- Consumer creates contract, provider verifies
-- Deploy services independently
-- Essential for microservices
-
----
+Advanced testing techniques live in `testing/structure.md` (property-based, mutation, contract, snapshot).
 
 ## Anti-Patterns
 - **The Liar** — passes without meaningful assertions

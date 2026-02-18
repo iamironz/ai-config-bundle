@@ -94,12 +94,11 @@ If you need a delay, the architecture is wrong.
 - Test concurrent state access (consistent final state)
 
 ## Debugging
-- Use `--info` for verbose output
-- Isolate failing **JVM** test with `--tests "ClassName.methodName"` (e.g. `:composeApp:jvmTest`, `testDebugUnitTest`)
-- Isolate failing **Android instrumentation** test via runner args, e.g.:
-  - `./gradlew :androidApp:connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.foo.MyTest`
-  - `./gradlew :androidApp:connectedAndroidTest -Pandroid.testInstrumentationRunnerArguments.class=com.foo.MyTest#myTest`
-- Print debugging (`println`) inside failing test
+- Narrow the scope (single test class/method) before running the full suite
+- Prefer platform-specific guidance for exact commands:
+  - Android: `android/testing.md`
+  - iOS: `ios/testing.md`
+- Use verbose output flags (`--info`, etc.) and print debugging inside the failing test when needed
 
 ---
 

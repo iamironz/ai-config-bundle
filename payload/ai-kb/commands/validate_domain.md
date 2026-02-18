@@ -12,17 +12,15 @@ Validate code against project-specific domain specifications and business rules.
 
 ## Input
 
-$ARGUMENTS
+Command input (text after the command name)
 
-- This is the command-specific request; do not ignore it.
-- Use it to drive keyword matching for `~/ai-kb/rules/INDEX.md` and rule loading.
+- Treat it as the command-specific request and constraints for this invocation.
 
 ---
 
 ## Before Starting
 
 - Follow `~/ai-kb/AGENTS.md` operational loop (`<rule_context>` required)
-- Follow parallel execution policy in AGENTS.md (offload heavy work, keep main thread light)
 - Load and follow `~/ai-kb/rules/command-orchestration.md` (bundle: `validate_domain`)
 - Read project domain docs (`doc/`, specs) before review
 - Focus rules: `architecture.md`, `defense-in-depth.md`, `error-handling.md`

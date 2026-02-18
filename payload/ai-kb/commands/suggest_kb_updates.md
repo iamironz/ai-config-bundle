@@ -14,9 +14,9 @@ This command creates recommendation docs only. It MUST NOT directly edit KB rule
 
 ## Input
 
-$ARGUMENTS
+Command input (text after the command name)
 
-- Treat `$ARGUMENTS` as the focus scope (keywords, files, incident name, or "what we learned").
+- Treat it as the focus scope (keywords, files, incident name, or "what we learned").
 - If scope is empty, default to the most recent meaningful work segment in this session.
 
 ---
