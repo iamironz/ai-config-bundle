@@ -1,0 +1,13 @@
+# Create Plan
+
+## Input
+
+Use the text the user typed after the command name as the request for this command.
+
+- Treat it as `$ARGUMENTS` for the shared command doc.
+
+## Instructions
+
+Read and follow `~/ai-kb/commands/create_plan.md` (canonical). If there is a conflict, prefer the shared doc.
+
+**Reminder:** Use `/create_plan` to generate plans; use `/execute_plan` only when a plan exists in the conversation history (or is attached).

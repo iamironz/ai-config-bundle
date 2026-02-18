@@ -1,0 +1,15 @@
+---
+description: "Use shared AI KB rules and context"
+alwaysApply: true
+---
+
+- Shared context index: `~/ai-kb/AGENTS.md`
+- Rules index: `~/ai-kb/rules/INDEX.md`
+- Commands: `~/ai-kb/commands/`
+
+Always read `~/ai-kb/AGENTS.md` and `~/ai-kb/rules/INDEX.md` before starting tasks.
+Output `<rule_context>` quoting the rules you will follow, then proceed without pausing.
+All user questions MUST use the `question` tool (no free-text questions).
+Every question must provide single-choice or multi-choice options and allow a custom input option.
+Any user-facing question is forbidden unless it is emitted via the `question` tool.
+Do not include `?` in responses unless it appears inside a `question` tool call.

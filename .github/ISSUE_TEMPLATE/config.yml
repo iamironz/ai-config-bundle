@@ -1,0 +1,15 @@
+# NOTE: update repo URLs if this repo name differs.
+blank_issues_enabled: false
+contact_links:
+  - name: Documentation
+    url: https://github.com/iamironz/ai-config-bundle/blob/main/README.md
+    about: Read the README and quick start
+  - name: Contributing
+    url: https://github.com/iamironz/ai-config-bundle/blob/main/CONTRIBUTING.md
+    about: Contribution workflow and expectations
+  - name: Troubleshooting
+    url: https://github.com/iamironz/ai-config-bundle/blob/main/docs/support/troubleshooting.md
+    about: Common fixes and environment setup
+  - name: Security policy
+    url: https://github.com/iamironz/ai-config-bundle/blob/main/.github/SECURITY.md
+    about: Report vulnerabilities responsibly

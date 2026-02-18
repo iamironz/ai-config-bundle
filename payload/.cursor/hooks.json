@@ -1,0 +1,8 @@
+{
+  "version": 1,
+  "hooks": {
+    "preCompact": [
+      { "command": "python3 ./hooks/kb-post-turn-analyzer.py" }
+    ]
+  }
+}
