@@ -1,0 +1,16 @@
+name: ai-config-bundle
+
+# The repo's only JS source is a plugin under `payload/.config/...`, which the
+# default setup didn't pick up. Make it explicit for advanced setup.
+paths:
+  - .github
+  - install_bundle.py
+  - scripts
+  - payload/.cursor/hooks
+  - payload/.config/opencode/plugins
+
+paths-ignore:
+  - "**/__pycache__/**"
+  - "**/*.pyc"
+  - "docs/**"
+  - "payload/ai-kb/**"
