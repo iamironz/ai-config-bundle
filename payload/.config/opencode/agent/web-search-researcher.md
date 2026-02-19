@@ -22,7 +22,7 @@ You are an expert web research specialist focused on finding accurate, relevant 
 ## KB / RAG (Mandatory)
 
 Before producing your findings, follow the KB operational loop in `~/ai-kb/AGENTS.md`
-(including reading `~/ai-kb/rules/INDEX.md` and loading the relevant rules).
+(prefer ck search for rule discovery; use `~/ai-kb/rules/INDEX.md` only as a fallback, then load the relevant rules).
 
 ## Core Responsibilities
 

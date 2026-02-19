@@ -14,6 +14,12 @@ node --version
 git --version
 ```
 
+1. (Optional) Verify `ck` is installed (only needed for ck MCP / semantic KB search):
+
+```bash
+ck --version
+```
+
 1. Run the installer in dry-run mode:
 
 ```bash
@@ -25,6 +31,16 @@ git --version
 ### Missing required tools
 
 If you see `Warning: missing required tools: ...`, install the missing tools and retry.
+
+### ck MCP server not working
+
+If your AI client shows MCP errors for server `ck`:
+
+1. Ensure `ck` is installed (`ck --version`).
+2. Ensure the MCP config exists:
+   - Cursor: `~/.cursor/mcp.json` or `<repo>/.cursor/mcp.json`
+   - OpenCode: `~/.config/opencode/opencode.json` or `<repo>/opencode.json`
+3. Restart the client so it reloads MCP servers.
 
 ### Unexpected overwrites or backups
 

@@ -6,13 +6,14 @@
 
 ## Start Here
 
+- KB retrieval (ck-first): `~/ai-kb/rules/kb-retrieval.md`
 - Rule discovery and loading: `~/ai-kb/rules/INDEX.md`
 - Command catalog: `~/ai-kb/commands/INDEX.md`
 
-## KB Structure, Retrieval, and Layers
+## KB Structure and Retrieval (ck-first)
 
 This KB is file-based: rules and commands are plain Markdown under `~/ai-kb/`.
-Retrieval is driven by indexes + explicit rule loading (not a vector database by default).
+Retrieval is driven by search (ck MCP) + explicit rule loading; do not scan or preload the entire KB.
 
 Post-turn analyzers can propose KB updates by writing recommendation docs; they do not auto-edit `~/ai-kb/`.
 
@@ -38,17 +39,17 @@ Treat these as suggestions: review, then apply manually (see `~/ai-kb/rules/kb-m
 
 For every task (plan, code, review), execute this loop.
 
-### 1) Scan & Discover
+### 1) Discover (ck-first)
 
-1. Read `~/ai-kb/rules/INDEX.md`
-2. Keyword-match the request to domains
-3. Proactively include related domains (API -> security + errors; UI -> architecture)
+1. Use ck (MCP server `ck`) to search `~/ai-kb` for relevant rules/commands by meaning and keywords (high threshold; follow only top matches).
+2. Prefer ck snippets first; read full KB docs only when snippets are insufficient.
+3. If ck is unavailable, fall back to `~/ai-kb/rules/INDEX.md` keyword matching.
 
 ### 2) Load (Thorough)
 
-1. Load **all Level 1** rules for matched and related domains
-2. For any directly relevant domain, choose Level 2 subdocs from the Level 1 rule's `Subdocuments` table
-3. For any code task, always include: `architecture.md`, `code-quality.md`, `error-handling.md`
+1. Load **all Level 1** rules that apply (use ck to find them quickly).
+2. For any directly relevant domain, load the Level 2 subdocs listed in the Level 1 rule's `Subdocuments` table (use ck `regex_search` for `Subdocuments` if needed).
+3. For any code task, always include: `architecture.md`, `code-quality.md`, `error-handling.md`.
 
 ### 3) Cite (Context Scratchpad)
 

@@ -22,7 +22,7 @@ You are a specialist at extracting HIGH-VALUE insights from thoughts documents. 
 ## KB / RAG (Mandatory)
 
 Before producing your analysis, follow the KB operational loop in `~/ai-kb/AGENTS.md`
-(including reading `~/ai-kb/rules/INDEX.md` and loading the relevant rules).
+(prefer ck search for rule discovery; use `~/ai-kb/rules/INDEX.md` only as a fallback, then load the relevant rules).
 
 ## Core Responsibilities
 

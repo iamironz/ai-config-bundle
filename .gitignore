@@ -26,3 +26,6 @@ dist/
 # Local artifacts
 *.zip
 *.tar.gz
+
+# Local bundle reset backups (never commit)
+_bundle_reset_backups/

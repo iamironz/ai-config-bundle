@@ -2,7 +2,15 @@
 
 **Shared KB:** Canonical rules for tools that load `~/ai-kb/`.
 
-## Quick Keyword Matching
+## KB Retrieval (ck-first)
+
+Preferred workflow:
+
+1. Use ck (MCP server `ck`) to search across `~/ai-kb` for the most relevant rules/commands (high threshold; run multiple searches before lowering threshold).
+2. Follow only the small set of top matches (high relevance) and cite them in `<rule_context>`.
+3. Use this index as a fallback if ck is unavailable.
+
+## Fallback Keyword Matching (when ck is unavailable)
 
 **Scan user request for these keywords to identify which rules to load:**
 
@@ -38,14 +46,16 @@
 
 ## Loading Protocol
 
-1. **Match keywords** from user request to table above
-2. **Load ALL Level 1 files** for matched domains AND related domains
-3. For each directly relevant domain, load the Level 2 subdocs listed in the Level 1 rule's `Subdocuments` table
-4. **Always load:** `architecture.md`, `code-quality.md`, `error-handling.md` for any code task
-5. **Proactively expand:** If task mentions "API", also load security, error-handling. If "UI", also load architecture.
+1. Use ck search (preferred) to identify relevant rules/commands for the request.
+2. If ck is unavailable, **match keywords** from user request to table above.
+3. **Load ALL Level 1 files** for matched domains AND related domains.
+4. For each directly relevant domain, load the Level 2 subdocs listed in the Level 1 rule's `Subdocuments` table.
+5. **Always load:** `architecture.md`, `code-quality.md`, `error-handling.md` for any code task.
+6. **Proactively expand:** If task mentions "API", also load security, error-handling. If "UI", also load architecture.
 
 ## Cross-Cutting Rules
 
+- `kb-retrieval.md` — ck-first KB discovery and indexing expectations.
 - `mcp-research.md` — MCP tool selection and research flow.
 - `command-orchestration.md` — command-level offloading model and skill bundles.
 - `kb-maintenance.md` — process post-turn KB recommendations and keep index/commands aligned.

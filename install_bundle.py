@@ -106,6 +106,18 @@ def install_missing_deps(missing: list[str]) -> None:
 
     print("Missing tools:", ", ".join(missing))
 
+    # ck-search is installed via cargo (no official brew/apt package documented yet).
+    if "ck" in missing:
+        cargo = shutil.which("cargo")
+        if cargo:
+            print("Installing via cargo: ck-search")
+            subprocess.run(["cargo", "install", "ck-search"], check=False)
+        else:
+            print("To install ck-search: cargo install ck-search (requires Rust toolchain)")
+        missing = [m for m in missing if m != "ck"]
+        if not missing:
+            return
+
     brew = shutil.which("brew")
     apt = shutil.which("apt-get")
 
@@ -504,6 +516,204 @@ def merge_cursor_hooks_file(
     state.planned_files.append((src, dst))
 
 
+def merge_cursor_mcp_file(
+    src: Path,
+    dst: Path,
+    args: argparse.Namespace,
+    state: InstallState,
+    stamp: str,
+    replacements: list[tuple[str, str]],
+    exts: set[str],
+    basenames: set[str],
+) -> None:
+    """Merge Cursor `.cursor/mcp.json` by adding missing MCP servers.
+
+    We only add servers that do not already exist in the destination to avoid
+    clobbering user customizations.
+    """
+    try:
+        src_text = apply_replacements(src.read_text(encoding="utf-8"), replacements)
+        src_data = json.loads(src_text)
+    except Exception:
+        state.notes.append(
+            f"Could not parse mcp JSON for merge; fallback to regular copy: {dst}"
+        )
+        copy_file(src, dst, args, state, stamp, replacements, exts, basenames)
+        return
+
+    if not isinstance(src_data, dict):
+        copy_file(src, dst, args, state, stamp, replacements, exts, basenames)
+        return
+
+    if not dst.exists():
+        write_json_file_with_backup(
+            path=dst,
+            data=src_data,
+            args=args,
+            state=state,
+            stamp=stamp,
+            source_for_plan=src,
+        )
+        return
+
+    try:
+        dst_data = json.loads(dst.read_text(encoding="utf-8"))
+    except Exception:
+        state.notes.append(
+            f"Could not parse mcp JSON for merge; fallback to regular copy: {dst}"
+        )
+        copy_file(src, dst, args, state, stamp, replacements, exts, basenames)
+        return
+
+    if not isinstance(dst_data, dict):
+        copy_file(src, dst, args, state, stamp, replacements, exts, basenames)
+        return
+
+    src_servers = src_data.get("mcpServers")
+    merged_servers = dst_data.setdefault("mcpServers", {})
+    if not isinstance(src_servers, dict) or not isinstance(merged_servers, dict):
+        copy_file(src, dst, args, state, stamp, replacements, exts, basenames)
+        return
+
+    changed = False
+    for name, server in src_servers.items():
+        if name in merged_servers:
+            continue
+        merged_servers[name] = server
+        changed = True
+
+    if not changed:
+        return
+
+    if args.preserve_existing:
+        print(f"Preserve existing mcp file: {dst}")
+        state.skipped_existing.append(dst)
+        return
+
+    if not args.dry_run:
+        backup_existing_path(dst, state, stamp, args.dry_run)
+        dst.write_text(json.dumps(dst_data, indent=2) + "\n", encoding="utf-8")
+    else:
+        print(f"Merge mcp file: {src} + {dst}")
+
+    state.overwritten_files += 1
+    state.planned_files.append((src, dst))
+
+
+def merge_opencode_json_file(
+    src: Path,
+    dst: Path,
+    args: argparse.Namespace,
+    state: InstallState,
+    stamp: str,
+    replacements: list[tuple[str, str]],
+    exts: set[str],
+    basenames: set[str],
+) -> None:
+    """Merge OpenCode `opencode.json` by adding missing instructions and MCP servers.
+
+    This avoids clobbering user settings while ensuring the KB entry points and the
+    `ck` MCP server are present.
+    """
+    try:
+        src_text = apply_replacements(src.read_text(encoding="utf-8"), replacements)
+        src_data = json.loads(src_text)
+    except Exception:
+        state.notes.append(
+            f"Could not parse opencode.json for merge; fallback to regular copy: {dst}"
+        )
+        copy_file(src, dst, args, state, stamp, replacements, exts, basenames)
+        return
+
+    if not isinstance(src_data, dict):
+        copy_file(src, dst, args, state, stamp, replacements, exts, basenames)
+        return
+
+    if not dst.exists():
+        write_json_file_with_backup(
+            path=dst,
+            data=src_data,
+            args=args,
+            state=state,
+            stamp=stamp,
+            source_for_plan=src,
+        )
+        return
+
+    try:
+        dst_data = json.loads(dst.read_text(encoding="utf-8"))
+    except Exception:
+        state.notes.append(
+            f"Could not parse opencode.json for merge; fallback to regular copy: {dst}"
+        )
+        copy_file(src, dst, args, state, stamp, replacements, exts, basenames)
+        return
+
+    if not isinstance(dst_data, dict):
+        copy_file(src, dst, args, state, stamp, replacements, exts, basenames)
+        return
+
+    changed = False
+
+    # Merge instructions (append missing; never remove).
+    src_instructions = src_data.get("instructions")
+    dst_instructions = dst_data.get("instructions")
+    if isinstance(src_instructions, list):
+        if dst_instructions is None:
+            dst_data["instructions"] = list(src_instructions)
+            changed = True
+        elif isinstance(dst_instructions, list):
+            for item in src_instructions:
+                if item not in dst_instructions:
+                    dst_instructions.append(item)
+                    changed = True
+
+    # Ensure ck MCP server exists (do not overwrite user config if already present).
+    dst_mcp = dst_data.get("mcp")
+    if dst_mcp is None:
+        dst_data["mcp"] = {}
+        dst_mcp = dst_data["mcp"]
+        changed = True
+    if isinstance(dst_mcp, dict):
+        if "ck" not in dst_mcp:
+            src_mcp = src_data.get("mcp")
+            ck_entry = None
+            if isinstance(src_mcp, dict):
+                ck_entry = src_mcp.get("ck")
+            if not isinstance(ck_entry, dict):
+                ck_entry = {
+                    "type": "local",
+                    "command": [
+                        "bash",
+                        "-lc",
+                        'cd "ai-kb" 2>/dev/null || cd "$HOME/ai-kb" && exec ck --serve',
+                    ],
+                    "enabled": True,
+                    "timeout": 15000,
+                }
+            dst_mcp["ck"] = ck_entry
+            changed = True
+    else:
+        state.notes.append("Skipped opencode.json MCP merge; `mcp` is not an object.")
+
+    if not changed:
+        return
+
+    if args.preserve_existing:
+        print(f"Preserve existing opencode.json: {dst}")
+        state.skipped_existing.append(dst)
+        return
+
+    if not args.dry_run:
+        backup_existing_path(dst, state, stamp, args.dry_run)
+        dst.write_text(json.dumps(dst_data, indent=2) + "\n", encoding="utf-8")
+    else:
+        print(f"Merge opencode.json: {src} + {dst}")
+
+    state.overwritten_files += 1
+    state.planned_files.append((src, dst))
+
+
 def copy_project_cursor_cli_permissions_file(
     src: Path,
     dst: Path,
@@ -617,9 +827,22 @@ def default_project_opencode_instructions(project_root: Path) -> list[str]:
 
 
 def default_project_opencode_config(required_instructions: list[str]) -> dict[str, object]:
+    ck_mcp = {
+        "ck": {
+            "type": "local",
+            "command": [
+                "bash",
+                "-lc",
+                'cd "ai-kb" 2>/dev/null || cd "$HOME/ai-kb" && exec ck --serve',
+            ],
+            "enabled": True,
+            "timeout": 15000,
+        }
+    }
     return {
         "$schema": "https://opencode.ai/config.json",
         "instructions": list(required_instructions),
+        "mcp": ck_mcp,
     }
 
 
@@ -730,6 +953,28 @@ def ensure_project_opencode_json(
         state.notes.append("Skipped opencode.json merge; `instructions` is not an array.")
         return
 
+    # Ensure ck MCP server exists (KB retrieval). Do not overwrite if user already configured it.
+    mcp = parsed.get("mcp")
+    if mcp is None:
+        parsed["mcp"] = {}
+        mcp = parsed["mcp"]
+        changed = True
+    if isinstance(mcp, dict):
+        if "ck" not in mcp:
+            mcp["ck"] = {
+                "type": "local",
+                "command": [
+                    "bash",
+                    "-lc",
+                    'cd "ai-kb" 2>/dev/null || cd "$HOME/ai-kb" && exec ck --serve',
+                ],
+                "enabled": True,
+                "timeout": 15000,
+            }
+            changed = True
+    else:
+        state.notes.append("Skipped opencode.json MCP merge; `mcp` is not an object.")
+
     if not changed:
         return
     if args.preserve_existing:
@@ -764,6 +1009,7 @@ def project_copy_plan(include_machine_config: bool) -> list[tuple[str, str]]:
         (".cursor/commands", ".cursor/commands"),
         (".cursor/rules", ".cursor/rules"),
         (".cursor/hooks", ".cursor/hooks"),
+        (".cursor/mcp.json", ".cursor/mcp.json"),
         (".cursor/hooks.json", ".cursor/hooks.json"),
         (".config/opencode/AGENTS.md", ".opencode/AGENTS.md"),
         (".config/opencode/agent", ".opencode/agents"),
@@ -930,6 +1176,13 @@ def install_entries(
     for src_rel, dst_rel in plan:
         src = payload / src_rel
         dst = destination_root / dst_rel
+        if src_rel == ".cursor/mcp.json":
+            if not src.exists():
+                state.missing_sources.append(src)
+                print(f"Missing source: {src}")
+                continue
+            merge_cursor_mcp_file(src, dst, args, state, stamp, replacements, exts, basenames)
+            continue
         if project_mode and src_rel == ".cursor/hooks.json":
             if not src.exists():
                 state.missing_sources.append(src)
@@ -947,6 +1200,13 @@ def install_entries(
             copy_project_cursor_cli_permissions_file(
                 src, dst, args, state, stamp, replacements, exts, basenames
             )
+            continue
+        if src_rel == ".config/opencode/opencode.json":
+            if not src.exists():
+                state.missing_sources.append(src)
+                print(f"Missing source: {src}")
+                continue
+            merge_opencode_json_file(src, dst, args, state, stamp, replacements, exts, basenames)
             continue
         copy_entry(src, dst, args, state, stamp, replacements, exts, basenames)
 
@@ -1018,7 +1278,7 @@ def main() -> int:
     basenames = set(manifest.get("text_basenames", []))
 
     required_tools = ["python3", "node", "git"]
-    optional_tools = ["bun", "uv"]
+    optional_tools = ["bun", "uv", "ck"]
     missing_required = [tool for tool in required_tools if shutil.which(tool) is None]
     missing_optional = [tool for tool in optional_tools if shutil.which(tool) is None]
 

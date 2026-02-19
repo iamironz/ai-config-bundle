@@ -12,6 +12,7 @@
     ".cursor/commands",
     ".cursor/rules",
     ".cursor/hooks",
+    ".cursor/mcp.json",
     ".cursor/hooks.json",
     ".cursor/cli-config.json"
   ],

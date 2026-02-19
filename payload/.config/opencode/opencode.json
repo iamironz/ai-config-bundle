@@ -7,6 +7,18 @@
     "~/ai-kb/rules/INDEX.md",
     "~/ai-kb/commands/INDEX.md"
   ],
+  "mcp": {
+    "ck": {
+      "type": "local",
+      "command": [
+        "bash",
+        "-lc",
+        "cd \"ai-kb\" 2>/dev/null || cd \"$HOME/ai-kb\" && exec ck --serve"
+      ],
+      "enabled": true,
+      "timeout": 15000
+    }
+  },
   "permission": {
     "edit": "allow",
     "bash": "allow",

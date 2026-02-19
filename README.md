@@ -26,9 +26,23 @@ The installer supports two modes:
 
 - Required: `python3`, `node`, `git`
 - Optional: `bun`, `uv`
+- Optional (recommended): `ck` (BeaconBay/ck) for semantic KB search via MCP
 
 If tools are missing, the installer prints a warning. With `--install-deps` it will attempt to
-install them via `brew` (macOS) or `apt-get` (Linux).
+install them via `brew` (macOS) or `apt-get` (Linux). For `ck`, it will try `cargo install ck-search`
+when `cargo` is available.
+
+## Optional: ck semantic KB search (MCP)
+
+This bundle can register the `ck` MCP server to index `ai-kb/` only and use semantic/hybrid
+search for KB retrieval (instead of manually scanning the KB).
+
+- Install `ck` (recommended): `cargo install ck-search`
+- Cursor: installs/merges `.cursor/mcp.json` with an MCP server named `ck`
+- OpenCode: installs/merges `opencode.json` with an MCP server named `ck`
+- Index freshness: semantic/hybrid searches update delta automatically when KB files change (no file watcher needed)
+- Optional pre-index: `cd ai-kb && ck --index .` (creates `ai-kb/.ck/`, ignored by `ai-kb/.gitignore`)
+- The payload includes `ai-kb/.ckignore` and `ai-kb/.gitignore` to avoid indexing bundle backups and committing ck cache
 
 ## Install (project mode)
 
@@ -86,7 +100,7 @@ All flags are implemented by [`install_bundle.py`](install_bundle.py) and are fo
 ### Project mode
 
 - KB: `ai-kb/` (entrypoints: `ai-kb/AGENTS.md`, `ai-kb/rules/INDEX.md`, `ai-kb/commands/INDEX.md`)
-- Cursor: `.cursor/commands/`, `.cursor/rules/` (entrypoint: `.cursor/rules/ai-kb.mdc`), `.cursor/hooks/`, `.cursor/hooks.json`
+- Cursor: `.cursor/commands/`, `.cursor/rules/` (entrypoint: `.cursor/rules/ai-kb.mdc`), `.cursor/hooks/`, `.cursor/hooks.json`, `.cursor/mcp.json`
 - OpenCode:
   - `.opencode/AGENTS.md`
   - `.opencode/commands/`
