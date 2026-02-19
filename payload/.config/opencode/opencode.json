@@ -13,7 +13,7 @@
       "command": [
         "bash",
         "-lc",
-        "cd \"ai-kb\" 2>/dev/null || cd \"$HOME/ai-kb\" && exec ck --serve"
+        "dir=\"$PWD\"; while [ -n \"$dir\" ] && [ \"$dir\" != \"/\" ]; do if [ -d \"$dir/ai-kb\" ]; then cd \"$dir/ai-kb\" 2>/dev/null && exec ck --serve; fi; next=\"$(dirname \"$dir\")\"; [ \"$next\" = \"$dir\" ] && break; dir=\"$next\"; done; cd \"$HOME/ai-kb\" 2>/dev/null && exec ck --serve; echo \"ck MCP: unable to locate ai-kb\" >&2; exit 1"
       ],
       "enabled": true,
       "timeout": 15000

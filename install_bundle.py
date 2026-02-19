@@ -686,13 +686,42 @@ def merge_opencode_json_file(
                     "command": [
                         "bash",
                         "-lc",
-                        'cd "ai-kb" 2>/dev/null || cd "$HOME/ai-kb" && exec ck --serve',
+                        'dir="$PWD"; while [ -n "$dir" ] && [ "$dir" != "/" ]; do if [ -d "$dir/ai-kb" ]; then cd "$dir/ai-kb" 2>/dev/null && exec ck --serve; fi; next="$(dirname "$dir")"; [ "$next" = "$dir" ] && break; dir="$next"; done; cd "$HOME/ai-kb" 2>/dev/null && exec ck --serve; echo "ck MCP: unable to locate ai-kb" >&2; exit 1',
                     ],
                     "enabled": True,
                     "timeout": 15000,
                 }
             dst_mcp["ck"] = ck_entry
             changed = True
+        else:
+            # Upgrade our legacy bundle command in-place (do not clobber custom configs).
+            existing = dst_mcp.get("ck")
+            legacy_commands = {
+                'cd "ai-kb" 2>/dev/null || cd "$HOME/ai-kb" && exec ck --serve',
+                'cd "ai-kb" 2>/dev/null || { root="$(git rev-parse --show-toplevel 2>/dev/null)" && cd "${root}/ai-kb"; } && exec ck --serve',
+            }
+            upgraded_command = (
+                'dir="$PWD"; while [ -n "$dir" ] && [ "$dir" != "/" ]; do '
+                'if [ -d "$dir/ai-kb" ]; then cd "$dir/ai-kb" 2>/dev/null && exec ck --serve; fi; '
+                'next="$(dirname "$dir")"; [ "$next" = "$dir" ] && break; dir="$next"; '
+                'done; cd "$HOME/ai-kb" 2>/dev/null && exec ck --serve; '
+                'echo "ck MCP: unable to locate ai-kb" >&2; exit 1'
+            )
+            if isinstance(existing, dict):
+                cmd = existing.get("command")
+                if isinstance(cmd, str) and cmd in legacy_commands:
+                    existing["command"] = upgraded_command
+                    changed = True
+                elif (
+                    isinstance(cmd, list)
+                    and len(cmd) >= 3
+                    and cmd[0] == "bash"
+                    and cmd[1] == "-lc"
+                    and isinstance(cmd[2], str)
+                    and cmd[2] in legacy_commands
+                ):
+                    cmd[2] = upgraded_command
+                    changed = True
     else:
         state.notes.append("Skipped opencode.json MCP merge; `mcp` is not an object.")
 
@@ -833,7 +862,7 @@ def default_project_opencode_config(required_instructions: list[str]) -> dict[st
             "command": [
                 "bash",
                 "-lc",
-                'cd "ai-kb" 2>/dev/null || cd "$HOME/ai-kb" && exec ck --serve',
+                'dir="$PWD"; while [ -n "$dir" ] && [ "$dir" != "/" ]; do if [ -d "$dir/ai-kb" ]; then cd "$dir/ai-kb" 2>/dev/null && exec ck --serve; fi; next="$(dirname "$dir")"; [ "$next" = "$dir" ] && break; dir="$next"; done; cd "$HOME/ai-kb" 2>/dev/null && exec ck --serve; echo "ck MCP: unable to locate ai-kb" >&2; exit 1',
             ],
             "enabled": True,
             "timeout": 15000,
@@ -966,12 +995,41 @@ def ensure_project_opencode_json(
                 "command": [
                     "bash",
                     "-lc",
-                    'cd "ai-kb" 2>/dev/null || cd "$HOME/ai-kb" && exec ck --serve',
+                    'dir="$PWD"; while [ -n "$dir" ] && [ "$dir" != "/" ]; do if [ -d "$dir/ai-kb" ]; then cd "$dir/ai-kb" 2>/dev/null && exec ck --serve; fi; next="$(dirname "$dir")"; [ "$next" = "$dir" ] && break; dir="$next"; done; cd "$HOME/ai-kb" 2>/dev/null && exec ck --serve; echo "ck MCP: unable to locate ai-kb" >&2; exit 1',
                 ],
                 "enabled": True,
                 "timeout": 15000,
             }
             changed = True
+        else:
+            # Upgrade our legacy bundle command in-place (do not clobber custom configs).
+            legacy_commands = {
+                'cd "ai-kb" 2>/dev/null || cd "$HOME/ai-kb" && exec ck --serve',
+                'cd "ai-kb" 2>/dev/null || { root="$(git rev-parse --show-toplevel 2>/dev/null)" && cd "${root}/ai-kb"; } && exec ck --serve',
+            }
+            upgraded_command = (
+                'dir="$PWD"; while [ -n "$dir" ] && [ "$dir" != "/" ]; do '
+                'if [ -d "$dir/ai-kb" ]; then cd "$dir/ai-kb" 2>/dev/null && exec ck --serve; fi; '
+                'next="$(dirname "$dir")"; [ "$next" = "$dir" ] && break; dir="$next"; '
+                'done; cd "$HOME/ai-kb" 2>/dev/null && exec ck --serve; '
+                'echo "ck MCP: unable to locate ai-kb" >&2; exit 1'
+            )
+            existing = mcp.get("ck")
+            if isinstance(existing, dict):
+                cmd = existing.get("command")
+                if isinstance(cmd, str) and cmd in legacy_commands:
+                    existing["command"] = upgraded_command
+                    changed = True
+                elif (
+                    isinstance(cmd, list)
+                    and len(cmd) >= 3
+                    and cmd[0] == "bash"
+                    and cmd[1] == "-lc"
+                    and isinstance(cmd[2], str)
+                    and cmd[2] in legacy_commands
+                ):
+                    cmd[2] = upgraded_command
+                    changed = True
     else:
         state.notes.append("Skipped opencode.json MCP merge; `mcp` is not an object.")
 
