@@ -1,4 +1,5 @@
-import { mkdir, readFile, readdir, writeFile } from "node:fs/promises"
+import { mkdir, readFile, readdir, stat, writeFile } from "node:fs/promises"
+import { homedir } from "node:os"
 import { join } from "node:path"
 
 const MAX_HISTORY_CHARS = Number(process.env.AI_KB_MAX_HISTORY_CHARS || 120000)
@@ -151,14 +152,14 @@ function buildAnalyzerPrompt(historyText) {
     "  ],",
     '  "index_updates": [',
     "    {",
-    '      "index_path": "ai-kb/rules/INDEX.md",',
+    '      "index_path": "~/ai-kb/rules/INDEX.md",',
     '      "entry": string,',
     '      "reason": string',
     "    }",
     "  ]",
     "}",
     "Constraints:",
-    "- target_path must be under ai-kb/rules/ or ai-kb/commands/",
+    "- target_path must be under ~/ai-kb/rules/ or ~/ai-kb/commands/",
     "- recommendations should be concise and non-duplicative",
     "- if no KB updates are needed, return should_recommend=false with empty arrays",
     "",
@@ -252,13 +253,29 @@ async function runStructuredAnalysis(client, historyText) {
   }
 }
 
+async function resolveRecommendationDir(directory) {
+  const projectDir = join(directory, ".opencode")
+  try {
+    const info = await stat(projectDir)
+    if (info.isDirectory()) {
+      return join(projectDir, "kb-recommendations")
+    }
+  } catch (_error) {
+    // Ignore; fall back to global queue.
+  }
+  return join(homedir(), ".config", "opencode", "kb-recommendations")
+}
+
 async function readProjectFile(directory, relativePath) {
   const relative = String(relativePath || "").trim().replace(/\\/g, "/")
-  if (!relative.startsWith("ai-kb/")) {
-    return ""
-  }
   try {
-    return await readFile(join(directory, relative), "utf8")
+    if (relative.startsWith("ai-kb/")) {
+      return await readFile(join(directory, relative), "utf8")
+    }
+    if (relative.startsWith("~/ai-kb/")) {
+      return await readFile(join(homedir(), relative.slice(2)), "utf8")
+    }
+    return ""
   } catch (_error) {
     return ""
   }
@@ -329,7 +346,7 @@ async function recommendationAlreadyCovered({ recommendation, directory, existin
 }
 
 async function indexUpdateAlreadyCovered({ update, directory, existingDocs }) {
-  const indexPath = String(update?.index_path || "ai-kb/rules/INDEX.md").trim()
+  const indexPath = String(update?.index_path || "~/ai-kb/rules/INDEX.md").trim()
   const entry = String(update?.entry || "").trim()
   const reason = String(update?.reason || "").trim()
 
@@ -466,7 +483,7 @@ function buildMarkdown({ timestamp, sessionId, generationId, historyChars, analy
     if (!update || typeof update !== "object") {
       continue
     }
-    const indexPath = String(update.index_path || "ai-kb/rules/INDEX.md").trim()
+    const indexPath = String(update.index_path || "~/ai-kb/rules/INDEX.md").trim()
     const entry = String(update.entry || "").trim()
     const reason = String(update.reason || "").trim()
     lines.push(`- \`${indexPath}\``)
@@ -481,7 +498,7 @@ function buildMarkdown({ timestamp, sessionId, generationId, historyChars, analy
   lines.push("")
   lines.push("## Next Action")
   lines.push("")
-  lines.push("- Apply validated KB updates, then maintain `ai-kb/rules/INDEX.md` and command references.")
+  lines.push("- Apply validated KB updates, then maintain `~/ai-kb/rules/INDEX.md` and command references.")
   return `${lines.join("\n")}\n`
 }
 
@@ -520,7 +537,7 @@ async function analyzeCompactionWindow({ directory, client, input, output }) {
       return
     }
 
-    const outDir = join(directory, ".opencode", "kb-recommendations")
+    const outDir = await resolveRecommendationDir(directory)
     const filtered = await filterNovelAnalysis({
       analysis,
       directory,

@@ -4,9 +4,6 @@ description: "(Shared) Delegates to ~/ai-kb/commands/create_plan.md"
 
 # Create Plan
 
-Use absolute paths for any ai-kb references by using
-~/ai-kb before reading files
-
 ## Input
 
 $ARGUMENTS

@@ -25,7 +25,7 @@ Command input (text after the command name)
 - Load and follow `~/ai-kb/rules/kb-maintenance.md` when recommendation queues are present
 - Read project docs (`doc/`, `AGENTS.md`) before edits
 - Focus rules: `architecture.md`, `error-handling/http.md`
-- If present, review `.cursor/kb-recommendations/*.md` and `.opencode/kb-recommendations/*.md`
+- If present, review `~/.cursor/kb-recommendations/*.md` and `~/.config/opencode/kb-recommendations/*.md`
 
 ---
 

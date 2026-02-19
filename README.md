@@ -1,81 +1,134 @@
 # AI Config Bundle
 
-This bundle contains:
+This repository ships an installable payload (`payload/`) plus an installer (`install_bundle.py`).
+It can install:
 
-- AI knowledge base (`~/ai-kb`)
-- OpenCode rules, agents, and commands
-- Cursor rules, hooks, and custom slash commands
-- Installer that can install either:
-  - **Globally** (home directory mode, legacy behavior), or
-  - **Per project** (project-local mode for `.cursor`, `.opencode`, and local `ai-kb`)
+- A shared knowledge base (KB) under `ai-kb/` (rules, commands, templates)
+- Cursor integration (`.cursor/` rules/commands/hooks)
+- OpenCode integration (`.opencode/` commands/agents/plugins + optional `opencode.json` merge)
 
-## Install On Target Machine
+The installer supports two modes:
 
-1. Unzip the archive
-2. Run:
+- **Project mode (recommended):** install into a single repo (`ai-kb/`, `.cursor/`, `.opencode/`)
+- **Global mode (legacy):** install under a target home directory (`~/ai-kb/`, `~/.cursor/`, `~/.config/opencode/`)
+
+## Requirements
+
+- Required: `python3`, `node`, `git`
+- Optional: `bun`, `uv`
+
+If tools are missing, the installer prints a warning. With `--install-deps` it will attempt to
+install them via `brew` (macOS) or `apt-get` (Linux).
+
+## Install (project mode)
+
+Dry-run preview:
+
+```bash
+./install.sh --project-dir /path/to/repo --dry-run
+```
+
+Install:
+
+```bash
+./install.sh --project-dir /path/to/repo
+```
+
+One-click (includes machine-specific config; disables `--preserve-existing`):
+
+```bash
+./install.sh --project-dir /path/to/repo --project-full
+```
+
+## Install (global mode)
+
+Dry-run preview:
+
+```bash
+./install.sh --dry-run
+./install.sh --target-home /home/newuser --dry-run
+```
+
+Install:
 
 ```bash
 ./install.sh
-```
-
-## Global Mode (legacy / default)
-
-This keeps the previous behavior and installs under a target home path.
-
-```bash
 ./install.sh --target-home /home/newuser
-./install.sh --install-deps
-./install.sh --dry-run
 ```
 
-## Project Mode (new)
+## Flags
 
-Install into a specific project directory. This sets up:
+All flags are implemented by `install_bundle.py` and are forwarded by `install.sh`.
 
-- `ai-kb/`
-- `.cursor/` rules/commands/hooks assets
-- `.opencode/` rules/commands/agents assets
-- Post-turn KB recommendation hooks:
-  - Cursor: `.cursor/hooks/kb-post-turn-analyzer.py` via `preCompact`
-  - OpenCode: `.opencode/plugins/kb-post-turn-analyzer.js` via `experimental.session.compacting`
-  - Both analyze the compaction window since the previous compaction; for first compaction they analyze from conversation start
-  - Before creating a new recommendation, both scan existing `kb-recommendations/*.md` and related `ai-kb/*` targets to skip already-covered guidance
-  - Both use model-based structured output over dialog history (not keyword heuristics)
-- `opencode.json` instructions merge/create
-- AGENTS compatibility (`AGENTS.md` merge + `AGENTS.ai-transfer.md` bridge when needed)
+| Flag | Mode | Meaning |
+|------|------|---------|
+| `--project-dir <path>` | project | Install repo-local `ai-kb/`, `.cursor/`, `.opencode/` into this directory |
+| `--project-full` | project | Enable `--include-machine-config` and disable `--preserve-existing` for one-click setup |
+| `--include-machine-config` | project | Also install `opencode.json`, `.opencode/dcp.jsonc`, `.cursor/cli.json` |
+| `--target-home <path>` | global | Install under this home directory (default: current `$HOME`) |
+| `--preserve-existing` | both | Do not overwrite conflicting destination files |
+| `--install-deps` | both | Try to install missing tools using brew/apt-get |
+| `--dry-run` | both | Print planned actions without writing files |
 
-```bash
-./install.sh --project-dir /path/to/project
-./install.sh --project-dir /path/to/project --project-full
-./install.sh --dry-run
-```
+## What gets installed
 
-### Project Mode Flags
+### Project mode
 
-- `--project-dir <path>`: install project-local assets into that repository
-- `--project-full`: one-click project setup (full machine config in project; no extra flags required)
-- `--include-machine-config`: install full machine-specific config files
-  (`opencode.json`, `.opencode/dcp.jsonc`, `.cursor/cli.json`);
-  intended for personal 1:1 environment cloning
-- `--preserve-existing`: do not overwrite conflicting files
-- `--install-deps`: attempt dependency install (brew/apt) for missing tools
+- KB: `ai-kb/`
+- Cursor: `.cursor/commands/`, `.cursor/rules/`, `.cursor/hooks/`, `.cursor/hooks.json`
+- OpenCode:
+  - `.opencode/AGENTS.md`
+  - `.opencode/commands/`
+  - `.opencode/agents/`
+  - `.opencode/plugins/`
 
-### Compatibility behavior
+OpenCode supports singular directory names for backwards compatibility, but the installer avoids
+creating both. If singular directories already exist, it migrates their contents into the
+canonical plural directories to prevent duplicate loading.
 
-- Existing project `AGENTS.md` is preserved and augmented with a compatibility include marker.
-- Existing rules/commands are preserved as directories; only conflicting files are backed up (unless `--preserve-existing` is used).
-- In `--project-full`, `--preserve-existing` is disabled to avoid partial/manual setup.
-- OpenCode directory compatibility is maintained by installing both singular and plural paths:
-  - `.opencode/command` + `.opencode/commands`
-  - `.opencode/agent` + `.opencode/agents`
-  - `.opencode/plugin` + `.opencode/plugins`
-- OpenCode wrapper docs use `~/ai-kb` in global installs; project installs rewrite these references to `<project>/ai-kb`.
+If `--include-machine-config` (or `--project-full`):
 
-### MCP note
+- `opencode.json` (created or merged with required `instructions` entrypoints)
+- `.opencode/dcp.jsonc`
+- `.cursor/cli.json` (project-safe subset of the global Cursor CLI config; permissions only)
 
-This bundle does not install MCP server configurations.
+Project installs do not create or modify repo-root `AGENTS.md`.
 
-### Post-turn KB analyzer knobs
+### Global mode
+
+- KB: `<target-home>/ai-kb/` (usually `~/ai-kb/`)
+- Cursor: `<target-home>/.cursor/**` (usually `~/.cursor/**`)
+- OpenCode: `<target-home>/.config/opencode/**` (usually `~/.config/opencode/**`)
+
+## Overwrites and backups
+
+- On conflicts, the installer writes `<file>.bak.<stamp>` before overwriting.
+- It is idempotent: if the rendered destination bytes already match, it does not rewrite or create backups.
+- With `--preserve-existing`, conflicting files are skipped and reported.
+- `--project-full` disables `--preserve-existing` for one-click setup.
+
+## Path rewriting (project mode)
+
+When installing into a repo, the installer rewrites home-style paths inside text files to keep
+docs/wrappers actionable:
+
+- `~/ai-kb` -> `ai-kb`
+- `~/.cursor` -> `.cursor`
+- `~/.config/opencode` -> `.opencode`
+
+## KB enrichment analyzers (optional)
+
+These hooks/plugins generate recommendation docs; they never auto-edit the KB.
+
+- Cursor hook: `.cursor/hooks/kb-post-turn-analyzer.py` (via `.cursor/hooks.json` `preCompact`)
+- OpenCode plugin: `.opencode/plugins/kb-post-turn-analyzer.js` (via `experimental.session.compacting`)
+
+Recommendation queues:
+
+- Project: `.cursor/kb-recommendations/*.md`, `.opencode/kb-recommendations/*.md`
+- Global fallback (when repo-local dirs are absent): `~/.cursor/kb-recommendations/*.md`, `~/.config/opencode/kb-recommendations/*.md`
+
+### Analyzer environment variables
 
 - `AI_KB_CURSOR_MODEL`: optional Cursor model id for analysis (example: `gpt-5.2`, `sonnet-4`)
 - `AI_KB_ANALYZER_MODEL`: legacy alias for `AI_KB_CURSOR_MODEL` when value does not contain `/`
@@ -85,15 +138,9 @@ This bundle does not install MCP server configurations.
 - `AI_KB_ANALYZER_TIMEOUT_SEC`: Cursor analyzer timeout in seconds (default `45`)
 - `AI_KB_RECOMMENDATION_SCAN_LIMIT`: max recent recommendation docs scanned for dedupe (default `300`)
 
-Model provider note:
-- Cursor hook uses Cursor CLI (`agent`) for analysis, so it uses your Cursor authentication.
-- Some providers require additional API keys; keep them out of the repo (never in bundle JSON or committed files)
+## Troubleshooting
 
-## Security Note
-
-This bundle can still contain machine-specific metadata when you include full machine config.
-Keep any API tokens in local-only config, not in committed files.
-Handle it as sensitive material.
+See `docs/support/troubleshooting.md`.
 
 ## Development
 

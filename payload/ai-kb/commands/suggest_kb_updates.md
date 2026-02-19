@@ -8,7 +8,7 @@ Generate KB enrichment recommendations (rules/commands) based on durable learnin
 
 This command creates recommendation docs only. It MUST NOT directly edit KB rules/commands.
 
-**Use for:** Capturing reusable principles, pitfalls, and workflows worth adding to `ai-kb/`.
+**Use for:** Capturing reusable principles, pitfalls, and workflows worth adding to `~/ai-kb/`.
 
 ---
 
@@ -47,15 +47,15 @@ Produce a JSON object with this schema:
   "recommendations": [
     {
       "action": "update_existing",
-      "target_path": "ai-kb/rules/<...>.md",
+      "target_path": "~/ai-kb/rules/<...>.md",
       "reason": "string",
       "suggested_content": "string",
-      "link_commands": ["ai-kb/commands/<...>.md"]
+      "link_commands": ["~/ai-kb/commands/<...>.md"]
     }
   ],
   "index_updates": [
     {
-      "index_path": "ai-kb/rules/INDEX.md",
+      "index_path": "~/ai-kb/rules/INDEX.md",
       "entry": "string",
       "reason": "string"
     }
@@ -65,7 +65,7 @@ Produce a JSON object with this schema:
 
 Constraints:
 
-- `target_path` must be under `ai-kb/rules/` or `ai-kb/commands/`.
+- `target_path` must be under `~/ai-kb/rules/` or `~/ai-kb/commands/`.
 - Recommendations must be concise and non-duplicative.
 - If nothing durable should be added, set `should_recommend=false` and use empty arrays.
 
@@ -83,14 +83,14 @@ Constraints:
    - Create new rule/command only when no existing target fits cleanly.
 
 3. **Deduplicate**
-   - If `.cursor/kb-recommendations/` exists: scan recent `*.md` for similar content and skip duplicates.
-   - If `.opencode/kb-recommendations/` exists: scan recent `*.md` for similar content and skip duplicates.
+   - If `~/.cursor/kb-recommendations/` exists: scan recent `*.md` for similar content and skip duplicates.
+   - If `~/.config/opencode/kb-recommendations/` exists: scan recent `*.md` for similar content and skip duplicates.
    - If the target KB doc exists (`target_path`): skip if it already contains equivalent guidance.
 
 4. **Write recommendation file(s)**
    - Write to any of these that exist (create directory if missing and safe to do so):
-     - `.cursor/kb-recommendations/`
-     - `.opencode/kb-recommendations/`
+     - `~/.cursor/kb-recommendations/`
+     - `~/.config/opencode/kb-recommendations/`
    - Filename: `<YYYYMMDD-HHMMSS>-manual-suggest_kb_updates.md`
 
 Use this markdown structure:
@@ -114,7 +114,7 @@ Use this markdown structure:
     - `<path>`
 
 ## Index Updates
-- `ai-kb/rules/INDEX.md`
+- `~/ai-kb/rules/INDEX.md`
   - Entry: <entry>
   - Reason: <reason>
 

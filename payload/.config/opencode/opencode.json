@@ -2,6 +2,11 @@
   "$schema": "https://opencode.ai/config.json",
   "lsp": false,
   "theme": "light",
+  "instructions": [
+    "~/ai-kb/AGENTS.md",
+    "~/ai-kb/rules/INDEX.md",
+    "~/ai-kb/commands/INDEX.md"
+  ],
   "permission": {
     "edit": "allow",
     "bash": "allow",

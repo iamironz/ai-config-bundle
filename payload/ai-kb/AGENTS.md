@@ -6,9 +6,33 @@
 
 ## Start Here
 
-- KB structure and layers: `~/ai-kb/rag.md`
 - Rule discovery and loading: `~/ai-kb/rules/INDEX.md`
 - Command catalog: `~/ai-kb/commands/INDEX.md`
+
+## KB Structure, Retrieval, and Layers
+
+This KB is file-based: rules and commands are plain Markdown under `~/ai-kb/`.
+Retrieval is driven by indexes + explicit rule loading (not a vector database by default).
+
+Post-turn analyzers can propose KB updates by writing recommendation docs; they do not auto-edit `~/ai-kb/`.
+
+### Canonical KB (durable)
+
+- Rules: `~/ai-kb/rules/**`
+- Commands: `~/ai-kb/commands/**`
+- Templates: `~/ai-kb/templates/**`
+
+### Generated Recommendation Queues (optional)
+
+Some environments can write recommendation docs that propose KB changes; they never auto-edit the KB.
+Treat these as suggestions: review, then apply manually (see `~/ai-kb/rules/kb-maintenance.md`).
+
+### Where To Put Things
+
+- Durable, domain-agnostic guidance -> `~/ai-kb/rules/`
+- Command workflow guidance -> `~/ai-kb/commands/`
+- Tool wiring (wrappers/hooks/config) -> tool-specific config dirs (keep it out of `~/ai-kb/`)
+- Project-specific details -> the project docs (not the global KB)
 
 ## The Operational Loop
 

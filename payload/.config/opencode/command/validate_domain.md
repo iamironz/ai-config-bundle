@@ -4,9 +4,6 @@ description: "(Shared) Delegates to ~/ai-kb/commands/validate_domain.md"
 
 # Validate Domain
 
-Use absolute paths for any ai-kb references by using
-~/ai-kb before reading files
-
 ## Input
 
 $ARGUMENTS

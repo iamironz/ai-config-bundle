@@ -4,8 +4,8 @@ Use this rule to keep the knowledge base updated from real implementation learni
 
 ## Recommendation Sources
 
-- Cursor hook output: `.cursor/kb-recommendations/*.md`
-- OpenCode plugin output: `.opencode/kb-recommendations/*.md`
+- Cursor hook output: `~/.cursor/kb-recommendations/*.md`
+- OpenCode plugin output: `~/.config/opencode/kb-recommendations/*.md`
 - Manual command output: `suggest_kb_updates` (writes to the same recommendation queues)
 
 ## Maintenance Workflow

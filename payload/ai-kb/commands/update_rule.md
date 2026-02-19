@@ -18,7 +18,7 @@ Command input (text after the command name)
 - Follow `~/ai-kb/AGENTS.md` operational loop (`<rule_context>` required)
 - Load and follow `~/ai-kb/rules/command-orchestration.md` (bundle: `update_rule`)
 - Load and follow `~/ai-kb/rules/kb-maintenance.md` for recommendation-driven updates
-- If present, review `.cursor/kb-recommendations/*.md` and `.opencode/kb-recommendations/*.md`
+- If present, review `~/.cursor/kb-recommendations/*.md` and `~/.config/opencode/kb-recommendations/*.md`
 
 ## Instructions
 

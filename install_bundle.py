@@ -12,9 +12,6 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
 
-AGENTS_MARKER_START = "<!-- ai-transfer:bundle:start -->"
-AGENTS_MARKER_END = "<!-- ai-transfer:bundle:end -->"
-AGENTS_COMPAT_FILE = "AGENTS.ai-transfer.md"
 HOOK_FILE_NAMES = [
     "kb-post-turn-analyzer.py",
 ]
@@ -608,90 +605,21 @@ def ensure_hook_executable_bits(cursor_hooks_root: Path, dry_run: bool) -> None:
         hook_path.chmod(mode | stat.S_IXUSR)
 
 
-def ensure_project_agents_compat(
-    payload: Path,
-    project_root: Path,
-    args: argparse.Namespace,
-    state: InstallState,
-    stamp: str,
-    replacements: list[tuple[str, str]],
-    exts: set[str],
-    basenames: set[str],
-) -> None:
-    payload_agents = payload / "AGENTS.md"
-    if not payload_agents.exists():
-        state.notes.append("payload/AGENTS.md missing; AGENTS compatibility skipped")
-        return
-
-    project_agents = project_root / "AGENTS.md"
-    if not project_agents.exists():
-        copy_file(
-            payload_agents,
-            project_agents,
-            args,
-            state,
-            stamp,
-            replacements,
-            exts,
-            basenames,
-        )
-        return
-
-    compat_agents = project_root / AGENTS_COMPAT_FILE
-    copy_file(
-        payload_agents,
-        compat_agents,
-        args,
-        state,
-        stamp,
-        replacements,
-        exts,
-        basenames,
-    )
-
-    if args.preserve_existing:
-        state.notes.append(
-            "AGENTS.md exists and preserve-existing is set; skipped auto-include block."
-        )
-        return
-
-    try:
-        current = project_agents.read_text(encoding="utf-8")
-    except Exception as exc:
-        state.notes.append(f"Could not read existing AGENTS.md for merge: {exc}")
-        return
-
-    if AGENTS_MARKER_START in current and AGENTS_MARKER_END in current:
-        return
-
-    include_block = (
-        f"{AGENTS_MARKER_START}\n"
-        "## AI Transfer Bundle Compatibility\n"
-        f"Read and apply `@{AGENTS_COMPAT_FILE}` for shared KB/rules/commands installed by this bundle.\n"
-        "Keep all existing project-specific instructions in this file.\n"
-        f"{AGENTS_MARKER_END}\n"
-    )
-
-    print(f"Update AGENTS include block: {project_agents}")
-    if args.dry_run:
-        return
-    project_agents.write_text(current.rstrip() + "\n\n" + include_block, encoding="utf-8")
-
-
-def default_project_opencode_instructions() -> list[str]:
-    return [
-        "AGENTS.md",
+def default_project_opencode_instructions(project_root: Path) -> list[str]:
+    instructions = [
         "ai-kb/AGENTS.md",
-        ".cursor/rules/*.md",
-        ".cursor/rules/*.mdc",
-        "ai-kb/rules/**/*.md",
+        "ai-kb/rules/INDEX.md",
+        "ai-kb/commands/INDEX.md",
     ]
+    if (project_root / "AGENTS.md").exists():
+        instructions.insert(0, "AGENTS.md")
+    return instructions
 
 
-def default_project_opencode_config() -> dict[str, object]:
+def default_project_opencode_config(required_instructions: list[str]) -> dict[str, object]:
     return {
         "$schema": "https://opencode.ai/config.json",
-        "instructions": default_project_opencode_instructions(),
+        "instructions": list(required_instructions),
     }
 
 
@@ -702,7 +630,7 @@ def ensure_project_opencode_json(
     stamp: str,
 ) -> None:
     config_path = project_root / "opencode.json"
-    required_instructions = default_project_opencode_instructions()
+    required_instructions = default_project_opencode_instructions(project_root)
 
     planned_config_copy = any(dst == config_path for _, dst in state.planned_files)
     if not config_path.exists():
@@ -712,7 +640,7 @@ def ensure_project_opencode_json(
                 "instruction merge runs after real file copy."
             )
             return
-        generated = default_project_opencode_config()
+        generated = default_project_opencode_config(required_instructions)
         print(f"Create project opencode.json: {config_path}")
         if not args.dry_run:
             config_path.write_text(json.dumps(generated, indent=2) + "\n", encoding="utf-8")
@@ -730,7 +658,7 @@ def ensure_project_opencode_json(
             )
             return
 
-        replacement = default_project_opencode_config()
+        replacement = default_project_opencode_config(required_instructions)
         state.notes.append(
             "Existing opencode.json was not strict JSON; backed it up and replaced "
             "with a project-compatible config."
@@ -752,7 +680,7 @@ def ensure_project_opencode_json(
             )
             return
 
-        replacement = default_project_opencode_config()
+        replacement = default_project_opencode_config(required_instructions)
         state.notes.append(
             "Existing opencode.json root was not an object; backed it up and replaced "
             "with a project-compatible config."
@@ -772,14 +700,28 @@ def ensure_project_opencode_json(
         parsed["instructions"] = list(required_instructions)
         changed = True
     elif isinstance(existing, list):
-        # Older bundle versions installed `.opencode/rules/**`. We now load rules directly
-        # from `ai-kb/rules/**`, so drop the stale glob if the directory isn't present.
-        stale_rules_glob = ".opencode/rules/**/*.md"
-        if stale_rules_glob in existing:
-            rules_dir = project_root / ".opencode" / "rules"
-            if not rules_dir.exists():
-                existing[:] = [item for item in existing if item != stale_rules_glob]
-                changed = True
+        # Older bundle versions preloaded rules via broad globs. We now keep rules under
+        # `ai-kb/rules/**` but rely on `ai-kb/rules/INDEX.md` for discovery (RAG-first),
+        # so we clean up known stale/preload globs where safe.
+        stale_rules_globs = [
+            ".opencode/rules/**/*.md",
+            # Preloading every rule defeats the KB "load relevant rules" workflow.
+            # Keep only the indexes and let the agent read the relevant Level 1/2 docs.
+            "ai-kb/rules/**/*.md",
+            ".cursor/rules/*.md",
+            ".cursor/rules/*.mdc",
+        ]
+        for stale_rules_glob in stale_rules_globs:
+            if stale_rules_glob not in existing:
+                continue
+            # Only auto-remove the old glob if it looks like a previous bundle artifact.
+            # For `.opencode/rules/**`, we also require the directory to be absent.
+            if stale_rules_glob == ".opencode/rules/**/*.md":
+                rules_dir = project_root / ".opencode" / "rules"
+                if rules_dir.exists():
+                    continue
+            existing[:] = [item for item in existing if item != stale_rules_glob]
+            changed = True
         for item in required_instructions:
             if item not in existing:
                 existing.append(item)
@@ -803,7 +745,17 @@ def ensure_project_opencode_json(
 
 
 def global_copy_plan(copied_items: list[str]) -> list[tuple[str, str]]:
-    return [(rel, rel) for rel in copied_items]
+    # OpenCode uses plural subdirectories (`agents/`, `commands/`, `plugins/`) as canonical.
+    # Singular names are supported for backwards compatibility, but we avoid installing both.
+    plan: list[tuple[str, str]] = []
+    for rel in copied_items:
+        dst = rel
+        if rel == ".config/opencode/agent":
+            dst = ".config/opencode/agents"
+        elif rel == ".config/opencode/command":
+            dst = ".config/opencode/commands"
+        plan.append((rel, dst))
+    return plan
 
 
 def project_copy_plan(include_machine_config: bool) -> list[tuple[str, str]]:
@@ -815,11 +767,8 @@ def project_copy_plan(include_machine_config: bool) -> list[tuple[str, str]]:
         (".cursor/hooks.json", ".cursor/hooks.json"),
         (".config/opencode/AGENTS.md", ".opencode/AGENTS.md"),
         (".config/opencode/agent", ".opencode/agents"),
-        (".config/opencode/agent", ".opencode/agent"),
         (".config/opencode/command", ".opencode/commands"),
-        (".config/opencode/command", ".opencode/command"),
         (".config/opencode/plugins", ".opencode/plugins"),
-        (".config/opencode/plugins", ".opencode/plugin"),
     ]
     if include_machine_config:
         plan.extend(
@@ -830,6 +779,111 @@ def project_copy_plan(include_machine_config: bool) -> list[tuple[str, str]]:
             ]
         )
     return plan
+
+
+def migrate_opencode_compat_dirs(
+    opencode_root: Path,
+    args: argparse.Namespace,
+    state: InstallState,
+    stamp: str,
+) -> None:
+    """Migrate singular OpenCode subdirs to canonical plural names.
+
+    OpenCode uses plural subdirectories (`agents/`, `commands/`, `plugins/`) as canonical.
+    Singular names (e.g., `agent/`) are supported for backwards compatibility, but when both
+    exist OpenCode may load both which causes duplicate commands/agents/plugins.
+    """
+
+    if not opencode_root.exists() or not opencode_root.is_dir():
+        return
+    if args.preserve_existing:
+        state.notes.append(
+            f"Skipped OpenCode compat directory migration because preserve-existing is set: {opencode_root}"
+        )
+        return
+
+    compat_pairs = [
+        ("agent", "agents"),
+        ("command", "commands"),
+        ("plugin", "plugins"),
+    ]
+
+    for singular, plural in compat_pairs:
+        singular_dir = opencode_root / singular
+        if not singular_dir.exists() or not singular_dir.is_dir():
+            continue
+        plural_dir = opencode_root / plural
+
+        if not plural_dir.exists():
+            print(f"Migrate OpenCode dir: {singular_dir} -> {plural_dir}")
+            if args.dry_run:
+                continue
+            plural_dir.parent.mkdir(parents=True, exist_ok=True)
+            shutil.move(str(singular_dir), str(plural_dir))
+            continue
+
+        if not plural_dir.is_dir():
+            state.notes.append(
+                f"Skipped OpenCode compat migration; destination is not a directory: {plural_dir}"
+            )
+            continue
+
+        for src_path in sorted(singular_dir.rglob("*")):
+            if src_path.is_dir():
+                continue
+            rel = src_path.relative_to(singular_dir)
+            dst_path = plural_dir / rel
+
+            if dst_path.exists() or dst_path.is_symlink():
+                if files_equal(src_path, dst_path):
+                    print(f"Remove duplicate OpenCode compat file: {src_path}")
+                    if args.dry_run:
+                        continue
+                    try:
+                        src_path.unlink()
+                    except Exception as exc:
+                        state.notes.append(
+                            f"Could not remove duplicate OpenCode compat file {src_path}: {exc}"
+                        )
+                    continue
+
+                conflict_path = dst_path.with_name(f"{dst_path.name}.compat.{stamp}")
+                print(f"Preserve OpenCode compat conflict: {src_path} -> {conflict_path}")
+                if args.dry_run:
+                    continue
+                conflict_path.parent.mkdir(parents=True, exist_ok=True)
+                try:
+                    shutil.move(str(src_path), str(conflict_path))
+                except Exception as exc:
+                    state.notes.append(
+                        f"Could not move OpenCode compat conflict file {src_path}: {exc}"
+                    )
+                continue
+
+            print(f"Move OpenCode compat file: {src_path} -> {dst_path}")
+            if args.dry_run:
+                continue
+            dst_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                shutil.move(str(src_path), str(dst_path))
+            except Exception as exc:
+                state.notes.append(f"Could not move OpenCode compat file {src_path}: {exc}")
+
+        if args.dry_run:
+            print(f"Prune empty OpenCode compat dir: {singular_dir}")
+            continue
+
+        for path in sorted(singular_dir.rglob("*"), reverse=True):
+            if path.is_dir():
+                try:
+                    path.rmdir()
+                except Exception:
+                    pass
+        try:
+            singular_dir.rmdir()
+            print(f"Removed OpenCode compat dir: {singular_dir}")
+        except Exception:
+            state.notes.append(f"OpenCode compat dir not empty; left in place: {singular_dir}")
 
 
 def global_replacements(source_home: str, target_home: str) -> list[tuple[str, str]]:
@@ -1006,15 +1060,11 @@ def main() -> int:
             basenames=basenames,
         )
 
-        ensure_project_agents_compat(
-            payload,
-            project_root,
-            args,
-            state,
-            stamp,
-            project_rewrite_rules,
-            exts,
-            basenames,
+        migrate_opencode_compat_dirs(
+            opencode_root=project_root / ".opencode",
+            args=args,
+            state=state,
+            stamp=stamp,
         )
         ensure_project_opencode_json(project_root, args, state, stamp)
         ensure_hook_executable_bits(project_root / ".cursor" / "hooks", args.dry_run)
@@ -1038,6 +1088,12 @@ def main() -> int:
         basenames=basenames,
     )
 
+    migrate_opencode_compat_dirs(
+        opencode_root=target_home / ".config" / "opencode",
+        args=args,
+        state=state,
+        stamp=stamp,
+    )
     ensure_hook_executable_bits(target_home / ".cursor" / "hooks", args.dry_run)
     print_summary(state, mode, target_home, args.dry_run, missing_optional)
     return 0

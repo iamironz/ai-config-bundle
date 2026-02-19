@@ -4,9 +4,6 @@ description: "(Shared) Delegates to ~/ai-kb/commands/commit.md"
 
 # Commit Changes
 
-Use absolute paths for any ai-kb references by using
-~/ai-kb before reading files
-
 ## Input
 
 $ARGUMENTS

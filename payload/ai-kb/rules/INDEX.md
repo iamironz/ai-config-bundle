@@ -1,6 +1,6 @@
 # Operational Context Index
 
-**Shared KB:** Canonical rules for tools that load `ai-kb/`.
+**Shared KB:** Canonical rules for tools that load `~/ai-kb/`.
 
 ## Quick Keyword Matching
 

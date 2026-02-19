@@ -101,14 +101,14 @@ def _analysis_prompt() -> str:
         "  ],\n"
         '  "index_updates": [\n'
         "    {\n"
-        '      "index_path": "ai-kb/rules/INDEX.md",\n'
+        '      "index_path": "~/ai-kb/rules/INDEX.md",\n'
         '      "entry": string,\n'
         '      "reason": string\n'
         "    }\n"
         "  ]\n"
         "}\n"
         "Constraints:\n"
-        "- target_path must be under ai-kb/rules/ or ai-kb/commands/\n"
+        "- target_path must be under ~/ai-kb/rules/ or ~/ai-kb/commands/\n"
         "- recommendations should be concise and non-duplicative\n"
         "- if no KB updates are needed, return should_recommend=false and empty arrays"
     )
@@ -314,11 +314,20 @@ def _load_existing_recommendation_docs(out_dir: Path) -> list[str]:
     return docs
 
 
-def _read_project_file(root: Path, relative_path: str) -> str:
-    relative = relative_path.strip().replace("\\", "/")
-    if not relative.startswith("ai-kb/"):
+def _read_kb_file(workspace_root: Path, path_text: str) -> str:
+    """Read a KB file referenced by a recommendation/update path.
+
+    Supports both project installs (`ai-kb/...`) and global installs (`~/ai-kb/...`).
+    """
+
+    relative = path_text.strip().replace("\\", "/")
+    full: Path | None = None
+    if relative.startswith("ai-kb/"):
+        full = workspace_root / relative
+    elif relative.startswith("~/ai-kb/"):
+        full = Path.home() / relative[2:]
+    else:
         return ""
-    full = root / relative
     if not full.exists() or not full.is_file():
         return ""
     try:
@@ -336,7 +345,7 @@ def _recommendation_already_covered(
     if not target_path and not suggested and not reason:
         return True
 
-    target_doc = _read_project_file(workspace_root, target_path)
+    target_doc = _read_kb_file(workspace_root, target_path)
     if target_doc:
         if suggested and _contains_or_similar(target_doc, suggested):
             return True
@@ -362,11 +371,11 @@ def _recommendation_already_covered(
 def _index_update_already_covered(
     update: dict[str, Any], workspace_root: Path, existing_docs: list[str]
 ) -> bool:
-    index_path = str(update.get("index_path") or "ai-kb/rules/INDEX.md").strip()
+    index_path = str(update.get("index_path") or "~/ai-kb/rules/INDEX.md").strip()
     entry = str(update.get("entry") or "").strip()
     reason = str(update.get("reason") or "").strip()
 
-    index_doc = _read_project_file(workspace_root, index_path)
+    index_doc = _read_kb_file(workspace_root, index_path)
     if index_doc and entry and _contains_or_similar(index_doc, entry):
         return True
 
@@ -469,7 +478,7 @@ def _render_markdown(
     for entry in index_updates:
         if not isinstance(entry, dict):
             continue
-        index_path = str(entry.get("index_path") or "ai-kb/rules/INDEX.md")
+        index_path = str(entry.get("index_path") or "~/ai-kb/rules/INDEX.md")
         value = str(entry.get("entry") or "").strip()
         reason = str(entry.get("reason") or "").strip()
         lines.append(f"- `{index_path}`")
@@ -483,15 +492,23 @@ def _render_markdown(
             "",
             "## Next Action",
             "",
-            "- Apply validated updates to KB docs, then update `ai-kb/rules/INDEX.md` and linked command docs.",
+            "- Apply validated updates to KB docs, then update `~/ai-kb/rules/INDEX.md` and linked command docs.",
         ]
     )
     return "\n".join(lines) + "\n"
 
 
+def _recommendations_dir(workspace_root: Path) -> Path:
+    """Prefer repo-local queue when present; fallback to global queue."""
+
+    if (workspace_root / ".cursor").exists():
+        return workspace_root / ".cursor" / "kb-recommendations"
+    return Path.home() / ".cursor" / "kb-recommendations"
+
+
 def _write_recommendation(payload: dict[str, Any], analysis: dict[str, Any], history: str) -> None:
     workspace_root = _workspace_root(payload)
-    out_dir = workspace_root / ".cursor" / "kb-recommendations"
+    out_dir = _recommendations_dir(workspace_root)
     out_dir.mkdir(parents=True, exist_ok=True)
 
     should_recommend = analysis.get("should_recommend")
@@ -554,7 +571,7 @@ def main() -> int:
         filtered = _filter_novel_analysis(
             analysis=analysis,
             workspace_root=workspace_root,
-            out_dir=workspace_root / ".cursor" / "kb-recommendations",
+            out_dir=_recommendations_dir(workspace_root),
         )
         _write_recommendation(payload=payload, analysis=filtered, history=history)
     except Exception:

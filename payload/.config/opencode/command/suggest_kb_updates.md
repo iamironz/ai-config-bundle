@@ -4,9 +4,6 @@ description: "(Shared) Delegates to ~/ai-kb/commands/suggest_kb_updates.md"
 
 # Suggest KB Updates
 
-Use absolute paths for any ai-kb references by using
-~/ai-kb before reading files
-
 ## Input
 
 $ARGUMENTS

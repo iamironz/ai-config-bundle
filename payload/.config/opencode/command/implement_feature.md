@@ -4,9 +4,6 @@ description: "(Shared) Delegates to ~/ai-kb/commands/implement_feature.md"
 
 # Implement Feature
 
-Use absolute paths for any ai-kb references by using
-~/ai-kb before reading files
-
 ## Input
 
 $ARGUMENTS
