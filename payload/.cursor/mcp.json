@@ -5,7 +5,7 @@
       "command": "bash",
       "args": [
         "-lc",
-        "cd \"${workspaceFolder}/ai-kb\" 2>/dev/null || cd \"${userHome}/ai-kb\" && exec ck --serve"
+        "(cd \"${workspaceFolder}/ai-kb\" 2>/dev/null || cd \"${userHome}/ai-kb\") && exec ck --serve"
       ]
     }
   }

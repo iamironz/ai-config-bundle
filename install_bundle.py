@@ -582,6 +582,29 @@ def merge_cursor_mcp_file(
         merged_servers[name] = server
         changed = True
 
+    # If ck server already exists, upgrade only if it matches a known legacy bundle value.
+    legacy_ck_commands = {
+        'cd "${workspaceFolder}/ai-kb" 2>/dev/null || cd "${userHome}/ai-kb" && exec ck --serve',
+    }
+    dst_ck = merged_servers.get("ck")
+    src_ck = src_servers.get("ck")
+    if isinstance(dst_ck, dict) and isinstance(src_ck, dict):
+        dst_args = dst_ck.get("args")
+        src_args = src_ck.get("args")
+        if (
+            isinstance(dst_args, list)
+            and len(dst_args) >= 2
+            and dst_args[0] == "-lc"
+            and isinstance(dst_args[1], str)
+            and dst_args[1] in legacy_ck_commands
+            and isinstance(src_args, list)
+            and len(src_args) >= 2
+            and src_args[0] == "-lc"
+            and isinstance(src_args[1], str)
+        ):
+            dst_args[1] = src_args[1]
+            changed = True
+
     if not changed:
         return
 

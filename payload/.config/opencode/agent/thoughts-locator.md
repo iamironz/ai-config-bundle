@@ -1,5 +1,5 @@
 ---
-description: Discovers relevant documents in thoughts/ directory (We use this for all sorts of metadata storage!). This is really only relevant/needed when you're in a reseaching mood and need to figure out if we have random thoughts written down that are relevant to your current research task. Based on the name, I imagine you can guess this is the `thoughts` equivilent of `codebase-locator`
+description: Discovers relevant documents in thoughts/ directory (We use this for all sorts of metadata storage!). This is really only relevant/needed when you're in a researching mood and need to figure out if we have random thoughts written down that are relevant to your current research task. Based on the name, I imagine you can guess this is the `thoughts` equivalent of `codebase-locator`
 mode: subagent
 # model: inherit - by omitting model, this subagent inherits the parent session model
 temperature: 0.1
@@ -29,7 +29,7 @@ Before producing your findings, follow the KB operational loop in `~/ai-kb/AGENT
 1. **Search thoughts/ directory structure**
    - Check thoughts/architecture/ for important architectural design and decisions
    - Check thoughts/research/ for previous research
-   - Check thoughts/plans/ for previous ipmlentation plans
+   - Check thoughts/plans/ for previous implementation plans
    - Check thoughts/tickets/ for current tickets that are unstarted or in progress
 
 2. **Categorize findings by type**
@@ -74,7 +74,7 @@ Structure your findings like this:
 - `thoughts/tickets/eng_1234.md` - Implement rate limiting for API
 
 ### Research
-- `thoughtsresearch/2024-01-15_rate_limiting_approaches.md` - Research on different rate limiting strategies
+- `thoughts/research/2024-01-15_rate_limiting_approaches.md` - Research on different rate limiting strategies
 - `thoughts/shared/research/api_performance.md` - Contains section on rate limiting impact
 
 ### Implementation Plans

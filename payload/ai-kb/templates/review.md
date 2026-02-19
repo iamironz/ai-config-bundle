@@ -17,9 +17,9 @@ status: [passed|failed|partial]
 
 | Check | Command | Result | Notes |
 |-------|---------|--------|-------|
-| Build | `turbo build` | [Pass/Fail] | |
-| Tests | `turbo test` | [Pass/Fail] | |
-| Lint | `turbo check` | [Pass/Fail] | [N warnings] |
+| Build | `./gradlew build` | [Pass/Fail] | |
+| Tests | `./gradlew test` | [Pass/Fail] | |
+| Lint | `./gradlew lint` | [Pass/Fail] | [N warnings] |
 
 ## Code Review Findings
 

@@ -5,6 +5,7 @@ import { join } from "node:path"
 const MAX_HISTORY_CHARS = Number(process.env.AI_KB_MAX_HISTORY_CHARS || 120000)
 const MIN_HISTORY_CHARS = Number(process.env.AI_KB_MIN_HISTORY_CHARS || 800)
 const SCAN_LIMIT = Number(process.env.AI_KB_RECOMMENDATION_SCAN_LIMIT || 300)
+const HOME_KB_PREFIX = "~" + "/ai-kb/"
 
 const activeSessionAnalyses = new Set()
 const internalSessionIds = new Set()
@@ -272,7 +273,7 @@ async function readProjectFile(directory, relativePath) {
     if (relative.startsWith("ai-kb/")) {
       return await readFile(join(directory, relative), "utf8")
     }
-    if (relative.startsWith("~/ai-kb/")) {
+    if (relative.startsWith(HOME_KB_PREFIX)) {
       return await readFile(join(homedir(), relative.slice(2)), "utf8")
     }
     return ""

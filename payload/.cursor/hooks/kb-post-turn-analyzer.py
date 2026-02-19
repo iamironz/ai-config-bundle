@@ -14,6 +14,7 @@ MAX_HISTORY_CHARS = int(os.environ.get("AI_KB_MAX_HISTORY_CHARS", "120000"))
 MIN_HISTORY_CHARS = int(os.environ.get("AI_KB_MIN_HISTORY_CHARS", "800"))
 ANALYZER_TIMEOUT_SEC = int(os.environ.get("AI_KB_ANALYZER_TIMEOUT_SEC", "45"))
 SCAN_LIMIT = int(os.environ.get("AI_KB_RECOMMENDATION_SCAN_LIMIT", "300"))
+HOME_KB_PREFIX = "~" + "/ai-kb/"
 
 # Prevent recursion when this hook spawns `agent` for analysis.
 #
@@ -324,7 +325,7 @@ def _read_kb_file(workspace_root: Path, path_text: str) -> str:
     full: Path | None = None
     if relative.startswith("ai-kb/"):
         full = workspace_root / relative
-    elif relative.startswith("~/ai-kb/"):
+    elif relative.startswith(HOME_KB_PREFIX):
         full = Path.home() / relative[2:]
     else:
         return ""
