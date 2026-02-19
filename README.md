@@ -1,11 +1,21 @@
 # AI Config Bundle
 
-This repository ships an installable payload (`payload/`) plus an installer (`install_bundle.py`).
+This repository ships an installable payload ([`payload/`](payload/)) plus an installer
+([`install_bundle.py`](install_bundle.py)) and wrapper script ([`install.sh`](install.sh)).
 It can install:
 
 - A shared knowledge base (KB) under `ai-kb/` (rules, commands, templates)
 - Cursor integration (`.cursor/` rules/commands/hooks)
 - OpenCode integration (`.opencode/` commands/agents/plugins + optional `opencode.json` merge)
+
+Useful entrypoints in this repo:
+
+- KB operational loop: [`payload/ai-kb/AGENTS.md`](payload/ai-kb/AGENTS.md)
+- Rules index: [`payload/ai-kb/rules/INDEX.md`](payload/ai-kb/rules/INDEX.md)
+- Commands index: [`payload/ai-kb/commands/INDEX.md`](payload/ai-kb/commands/INDEX.md)
+- Cursor entrypoint: [`payload/.cursor/rules/ai-kb.mdc`](payload/.cursor/rules/ai-kb.mdc)
+- OpenCode entrypoint: [`payload/.config/opencode/AGENTS.md`](payload/.config/opencode/AGENTS.md)
+- Troubleshooting: [`docs/support/troubleshooting.md`](docs/support/troubleshooting.md)
 
 The installer supports two modes:
 
@@ -58,7 +68,8 @@ Install:
 
 ## Flags
 
-All flags are implemented by `install_bundle.py` and are forwarded by `install.sh`.
+All flags are implemented by [`install_bundle.py`](install_bundle.py) and are forwarded by
+[`install.sh`](install.sh).
 
 | Flag | Mode | Meaning |
 |------|------|---------|
@@ -74,8 +85,8 @@ All flags are implemented by `install_bundle.py` and are forwarded by `install.s
 
 ### Project mode
 
-- KB: `ai-kb/`
-- Cursor: `.cursor/commands/`, `.cursor/rules/`, `.cursor/hooks/`, `.cursor/hooks.json`
+- KB: `ai-kb/` (entrypoints: `ai-kb/AGENTS.md`, `ai-kb/rules/INDEX.md`, `ai-kb/commands/INDEX.md`)
+- Cursor: `.cursor/commands/`, `.cursor/rules/` (entrypoint: `.cursor/rules/ai-kb.mdc`), `.cursor/hooks/`, `.cursor/hooks.json`
 - OpenCode:
   - `.opencode/AGENTS.md`
   - `.opencode/commands/`
@@ -88,7 +99,7 @@ canonical plural directories to prevent duplicate loading.
 
 If `--include-machine-config` (or `--project-full`):
 
-- `opencode.json` (created or merged with required `instructions` entrypoints)
+- `opencode.json` (created or merged with minimal `instructions` entrypoints; avoids preloading `ai-kb/rules/**/*.md`)
 - `.opencode/dcp.jsonc`
 - `.cursor/cli.json` (project-safe subset of the global Cursor CLI config; permissions only)
 
@@ -140,7 +151,7 @@ Recommendation queues:
 
 ## Troubleshooting
 
-See `docs/support/troubleshooting.md`.
+See [`docs/support/troubleshooting.md`](docs/support/troubleshooting.md).
 
 ## Development
 
@@ -150,20 +161,20 @@ Run the repo checks and smoke tests:
 ./scripts/run-tests.sh
 ```
 
-See `CONTRIBUTING.md` for contribution workflow and expectations.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution workflow and expectations.
 
 ## Contributing
 
-See `CONTRIBUTING.md`.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ## Security
 
-See `.github/SECURITY.md`.
+See [`.github/SECURITY.md`](.github/SECURITY.md).
 
 ## License
 
-MIT. See `LICENSE`.
+MIT. See [`LICENSE`](LICENSE).
 
 ## Changelog
 
-See `CHANGELOG.md`.
+See [`CHANGELOG.md`](CHANGELOG.md).
