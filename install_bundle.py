@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import shutil
 import stat
 import subprocess
@@ -31,6 +32,15 @@ class InstallState:
     rewritten_text_files: int = 0
 
 
+@dataclass
+class UninstallState:
+    planned_paths: list[Path] = field(default_factory=list)
+    removed_paths: list[Path] = field(default_factory=list)
+    restored_backups: list[tuple[Path, Path]] = field(default_factory=list)
+    missing_paths: list[Path] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Install AI transfer bundle")
     parser.add_argument(
@@ -56,7 +66,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help=(
             "Project mode only: install full machine-specific config files "
-            "(opencode.json, dcp, .cursor/cli.json)."
+            "(opencode.json, dcp)."
         ),
     )
     parser.add_argument(
@@ -73,6 +83,22 @@ def parse_args() -> argparse.Namespace:
         "--dry-run",
         action="store_true",
         help="Show planned actions without writing files.",
+    )
+    parser.add_argument(
+        "--uninstall",
+        action="store_true",
+        help=(
+            "Uninstall bundle-managed files from target and restore matching backups "
+            "when available."
+        ),
+    )
+    parser.add_argument(
+        "--uninstall-all",
+        action="store_true",
+        help=(
+            "Force cleanup of bundle-managed roots (restore root backups when "
+            "available, otherwise remove roots recursively). Requires --uninstall."
+        ),
     )
     return parser.parse_args()
 
@@ -628,6 +654,8 @@ def merge_opencode_json_file(
     if not isinstance(src_data, dict):
         copy_file(src, dst, args, state, stamp, replacements, exts, basenames)
         return
+    # Do not propagate OpenCode tool permission policies from bundle payload.
+    src_data = {k: v for k, v in src_data.items() if k not in {"permission", "permissions"}}
 
     if not dst.exists():
         write_json_file_with_backup(
@@ -712,95 +740,6 @@ def merge_opencode_json_file(
 
     state.overwritten_files += 1
     state.planned_files.append((src, dst))
-
-
-def copy_project_cursor_cli_permissions_file(
-    src: Path,
-    dst: Path,
-    args: argparse.Namespace,
-    state: InstallState,
-    stamp: str,
-    replacements: list[tuple[str, str]],
-    exts: set[str],
-    basenames: set[str],
-) -> None:
-    """Write a project-scoped `cli.json` containing only `permissions`.
-
-    Cursor docs: only `permissions` is supported at the project level (`.cursor/cli.json`).
-    The payload includes a full `cli-config.json` (global settings + permissions); when
-    installing machine config into a project we down-scope it to avoid unsupported keys.
-    """
-
-    try:
-        src_data = json.loads(src.read_text(encoding="utf-8"))
-    except Exception:
-        state.notes.append(
-            f"Could not parse cli-config JSON for project install; fallback to regular copy: {dst}"
-        )
-        copy_file(src, dst, args, state, stamp, replacements, exts, basenames)
-        return
-
-    if not isinstance(src_data, dict) or not isinstance(src_data.get("permissions"), dict):
-        copy_file(src, dst, args, state, stamp, replacements, exts, basenames)
-        return
-
-    permissions = src_data.get("permissions", {})
-    allow_raw = permissions.get("allow", [])
-    deny_raw = permissions.get("deny", [])
-
-    def _rewrite_tokens(value: object) -> list[str]:
-        if not isinstance(value, list):
-            return []
-        out: list[str] = []
-        for item in value:
-            if not isinstance(item, str):
-                continue
-            out.append(apply_replacements(item, replacements))
-        return out
-
-    rendered_permissions: dict[str, object] = {}
-    allow = _rewrite_tokens(allow_raw)
-    deny = _rewrite_tokens(deny_raw)
-    if allow:
-        rendered_permissions["allow"] = allow
-    if deny:
-        rendered_permissions["deny"] = deny
-
-    rendered_text = json.dumps({"permissions": rendered_permissions}, indent=2) + "\n"
-
-    # Match `copy_file` behavior (idempotent compare; backup only if changed).
-    if dst.exists() and dst.is_dir():
-        state.notes.append(f"Skip file copy; destination is a directory: {dst}")
-        return
-
-    if dst.exists() or dst.is_symlink():
-        if dst.exists():
-            try:
-                if dst.read_text(encoding="utf-8") == rendered_text:
-                    return
-            except Exception:
-                pass
-        if args.preserve_existing:
-            print(f"Preserve existing: {dst}")
-            state.skipped_existing.append(dst)
-            return
-        backup_existing_path(dst, state, stamp, args.dry_run)
-        state.overwritten_files += 1
-    else:
-        state.created_files += 1
-        state.created_paths.add(dst)
-
-    print(f"Install file: {src} -> {dst}")
-    state.planned_files.append((src, dst))
-    if args.dry_run:
-        return
-
-    dst.parent.mkdir(parents=True, exist_ok=True)
-    dst.write_text(rendered_text, encoding="utf-8")
-    try:
-        shutil.copymode(src, dst)
-    except Exception:
-        pass
 
 
 def ensure_hook_executable_bits(cursor_hooks_root: Path, dry_run: bool) -> None:
@@ -994,6 +933,8 @@ def global_copy_plan(copied_items: list[str]) -> list[tuple[str, str]]:
     # Singular names are supported for backwards compatibility, but we avoid installing both.
     plan: list[tuple[str, str]] = []
     for rel in copied_items:
+        if rel == ".cursor/cli-config.json":
+            continue
         dst = rel
         if rel == ".config/opencode/agent":
             dst = ".config/opencode/agents"
@@ -1019,12 +960,242 @@ def project_copy_plan(include_machine_config: bool) -> list[tuple[str, str]]:
     if include_machine_config:
         plan.extend(
             [
-                (".cursor/cli-config.json", ".cursor/cli.json"),
                 (".config/opencode/opencode.json", "opencode.json"),
                 (".config/opencode/dcp.jsonc", ".opencode/dcp.jsonc"),
             ]
         )
     return plan
+
+
+def iter_payload_files(root: Path) -> list[Path]:
+    files: list[Path] = []
+    for path in sorted(root.rglob("*")):
+        if not path.is_file():
+            continue
+        if path.name in {".DS_Store"}:
+            continue
+        files.append(path)
+    return files
+
+
+def collect_uninstall_targets(
+    payload: Path,
+    destination_root: Path,
+    plan: list[tuple[str, str]],
+    project_mode: bool,
+) -> tuple[list[Path], set[Path]]:
+    file_targets: set[Path] = set()
+    dir_targets: set[Path] = set()
+
+    for src_rel, dst_rel in plan:
+        src = payload / src_rel
+        dst = destination_root / dst_rel
+
+        if src.is_dir():
+            dir_targets.add(dst)
+            for src_file in iter_payload_files(src):
+                rel = src_file.relative_to(src)
+                file_targets.add(dst / rel)
+            continue
+
+        # Include explicit file targets even if source is currently missing from payload.
+        file_targets.add(dst)
+        dir_targets.add(dst.parent)
+
+    # Project installs always ensure/merge repo-root opencode.json.
+    if project_mode:
+        file_targets.add(destination_root / "opencode.json")
+        dir_targets.add(destination_root)
+
+    return sorted(file_targets), dir_targets
+
+
+def managed_root_targets(destination_root: Path, project_mode: bool) -> list[Path]:
+    if project_mode:
+        roots = [
+            destination_root / "ai-kb",
+            destination_root / ".cursor",
+            destination_root / ".opencode",
+            destination_root / "opencode.json",
+        ]
+    else:
+        roots = [
+            destination_root / "ai-kb",
+            destination_root / ".cursor",
+            destination_root / ".config" / "opencode",
+        ]
+
+    deduped: list[Path] = []
+    seen: set[Path] = set()
+    for root in roots:
+        if root in seen:
+            continue
+        seen.add(root)
+        deduped.append(root)
+    return deduped
+
+
+def latest_backup_for_target(target: Path) -> Path | None:
+    pattern = re.compile(
+        rf"^{re.escape(target.name)}\.bak\.(?P<stamp>\d{{8}}-\d{{6}})(?:\.(?P<idx>\d+))?$"
+    )
+    candidates: list[tuple[int, str, int, str, Path]] = []
+
+    for path in target.parent.glob(f"{target.name}.bak.*"):
+        if not (path.exists() or path.is_symlink()):
+            continue
+        match = pattern.match(path.name)
+        if match:
+            candidates.append(
+                (
+                    1,
+                    match.group("stamp"),
+                    int(match.group("idx") or 0),
+                    path.name,
+                    path,
+                )
+            )
+            continue
+        candidates.append((0, "", 0, path.name, path))
+
+    if not candidates:
+        return None
+    candidates.sort()
+    return candidates[-1][-1]
+
+
+def remove_path(path: Path, dry_run: bool, state: UninstallState) -> None:
+    print(f"Remove: {path}")
+    state.removed_paths.append(path)
+    if dry_run:
+        return
+
+    if path.is_dir() and not path.is_symlink():
+        shutil.rmtree(path)
+    else:
+        path.unlink()
+
+
+def restore_backup(target: Path, backup: Path, dry_run: bool, state: UninstallState) -> None:
+    print(f"Restore backup: {backup} -> {target}")
+    state.restored_backups.append((target, backup))
+    if dry_run:
+        return
+
+    if target.exists() or target.is_symlink():
+        if target.is_dir() and not target.is_symlink():
+            shutil.rmtree(target)
+        else:
+            target.unlink()
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    shutil.move(str(backup), str(target))
+
+
+def prune_empty_directories(
+    destination_root: Path,
+    file_targets: list[Path],
+    dir_targets: set[Path],
+    dry_run: bool,
+    state: UninstallState,
+) -> None:
+    candidates: set[Path] = set()
+
+    for path in file_targets:
+        parent = path.parent
+        while parent != destination_root and parent != parent.parent:
+            candidates.add(parent)
+            parent = parent.parent
+
+    for directory in dir_targets:
+        current = directory
+        while current != destination_root and current != current.parent:
+            candidates.add(current)
+            current = current.parent
+
+    for directory in sorted(candidates, key=lambda path: len(path.parts), reverse=True):
+        if not directory.exists() or not directory.is_dir():
+            continue
+        try:
+            next(directory.iterdir())
+            continue
+        except StopIteration:
+            remove_path(directory, dry_run, state)
+        except Exception as exc:
+            state.notes.append(f"Could not inspect directory {directory}: {exc}")
+
+
+def uninstall_entries(
+    payload: Path,
+    destination_root: Path,
+    plan: list[tuple[str, str]],
+    args: argparse.Namespace,
+    state: UninstallState,
+    project_mode: bool,
+) -> None:
+    file_targets, dir_targets = collect_uninstall_targets(
+        payload=payload,
+        destination_root=destination_root,
+        plan=plan,
+        project_mode=project_mode,
+    )
+
+    restored_dir_targets: set[Path] = set()
+    for directory in sorted(dir_targets):
+        backup = latest_backup_for_target(directory)
+        if backup is None:
+            continue
+        state.planned_paths.append(directory)
+        restore_backup(directory, backup, args.dry_run, state)
+        restored_dir_targets.add(directory)
+
+    for target in file_targets:
+        if any(target.is_relative_to(directory) for directory in restored_dir_targets):
+            continue
+        state.planned_paths.append(target)
+        backup = latest_backup_for_target(target)
+        if backup is not None:
+            restore_backup(target, backup, args.dry_run, state)
+            continue
+
+        if target.exists() or target.is_symlink():
+            remove_path(target, args.dry_run, state)
+            continue
+
+        state.missing_paths.append(target)
+
+    prune_empty_directories(
+        destination_root=destination_root,
+        file_targets=file_targets,
+        dir_targets=dir_targets,
+        dry_run=args.dry_run,
+        state=state,
+    )
+
+
+def uninstall_all_roots(
+    destination_root: Path,
+    args: argparse.Namespace,
+    state: UninstallState,
+    project_mode: bool,
+) -> None:
+    roots = managed_root_targets(destination_root=destination_root, project_mode=project_mode)
+    state.notes.append(
+        "Force cleanup enabled: managed roots are removed recursively when no backup exists."
+    )
+
+    for target in roots:
+        state.planned_paths.append(target)
+        backup = latest_backup_for_target(target)
+        if backup is not None:
+            restore_backup(target, backup, args.dry_run, state)
+            continue
+
+        if target.exists() or target.is_symlink():
+            remove_path(target, args.dry_run, state)
+            continue
+
+        state.missing_paths.append(target)
 
 
 def migrate_opencode_compat_dirs(
@@ -1192,15 +1363,6 @@ def install_entries(
                 src, dst, args, state, stamp, replacements, exts, basenames
             )
             continue
-        if project_mode and src_rel == ".cursor/cli-config.json" and dst_rel == ".cursor/cli.json":
-            if not src.exists():
-                state.missing_sources.append(src)
-                print(f"Missing source: {src}")
-                continue
-            copy_project_cursor_cli_permissions_file(
-                src, dst, args, state, stamp, replacements, exts, basenames
-            )
-            continue
         if src_rel == ".config/opencode/opencode.json":
             if not src.exists():
                 state.missing_sources.append(src)
@@ -1240,6 +1402,26 @@ def print_summary(
         print("Optional tools missing:", ", ".join(missing_optional))
 
 
+def print_uninstall_summary(
+    state: UninstallState,
+    mode: str,
+    target: Path,
+    dry_run: bool,
+) -> None:
+    print("Done")
+    print("Mode:", mode)
+    print("Target:", target)
+    print("Dry run:", "yes" if dry_run else "no")
+    print("Managed paths:", len(state.planned_paths))
+    print("Removed paths:", len(state.removed_paths))
+    print("Backups restored:", len(state.restored_backups))
+    print("Missing managed paths:", len(state.missing_paths))
+    if state.notes:
+        print("Notes:")
+        for note in state.notes:
+            print(" -", note)
+
+
 def main() -> int:
     args = parse_args()
 
@@ -1254,7 +1436,25 @@ def main() -> int:
         )
         return 2
 
-    if args.project_full:
+    if args.uninstall and args.install_deps:
+        print("--install-deps cannot be used with --uninstall.", file=sys.stderr)
+        return 2
+
+    if args.uninstall_all and not args.uninstall:
+        print("--uninstall-all requires --uninstall.", file=sys.stderr)
+        return 2
+
+    if args.uninstall and args.preserve_existing:
+        print("--preserve-existing cannot be used with --uninstall.", file=sys.stderr)
+        return 2
+
+    if args.uninstall and args.project_full:
+        print("Note: --project-full is ignored with --uninstall.", file=sys.stderr)
+
+    if args.uninstall and args.include_machine_config:
+        print("Note: --include-machine-config is ignored with --uninstall.", file=sys.stderr)
+
+    if args.project_full and not args.uninstall:
         args.include_machine_config = True
         if args.preserve_existing:
             print(
@@ -1277,15 +1477,17 @@ def main() -> int:
     exts = set(manifest.get("text_extensions", []))
     basenames = set(manifest.get("text_basenames", []))
 
-    required_tools = ["python3", "node", "git"]
-    optional_tools = ["bun", "uv", "ck"]
-    missing_required = [tool for tool in required_tools if shutil.which(tool) is None]
-    missing_optional = [tool for tool in optional_tools if shutil.which(tool) is None]
+    missing_optional: list[str] = []
+    if not args.uninstall:
+        required_tools = ["python3", "node", "git"]
+        optional_tools = ["bun", "uv", "ck"]
+        missing_required = [tool for tool in required_tools if shutil.which(tool) is None]
+        missing_optional = [tool for tool in optional_tools if shutil.which(tool) is None]
 
-    if args.install_deps:
-        install_missing_deps(missing_required + missing_optional)
-    if missing_required:
-        print("Warning: missing required tools:", ", ".join(missing_required))
+        if args.install_deps:
+            install_missing_deps(missing_required + missing_optional)
+        if missing_required:
+            print("Warning: missing required tools:", ", ".join(missing_required))
 
     state = InstallState()
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -1296,6 +1498,27 @@ def main() -> int:
         if not project_root.exists() or not project_root.is_dir():
             print(f"Project directory does not exist: {project_root}", file=sys.stderr)
             return 2
+
+        if args.uninstall:
+            uninstall_state = UninstallState()
+            if args.uninstall_all:
+                uninstall_all_roots(
+                    destination_root=project_root,
+                    args=args,
+                    state=uninstall_state,
+                    project_mode=True,
+                )
+            else:
+                uninstall_entries(
+                    payload=payload,
+                    destination_root=project_root,
+                    plan=project_copy_plan(include_machine_config=True),
+                    args=args,
+                    state=uninstall_state,
+                    project_mode=True,
+                )
+            print_uninstall_summary(uninstall_state, mode, project_root, args.dry_run)
+            return 0
 
         if args.project_full:
             state.notes.append(
@@ -1334,6 +1557,28 @@ def main() -> int:
     mode = "home"
     target_home = Path(args.target_home or Path.home()).expanduser().resolve()
     plan = global_copy_plan(copied_items)
+
+    if args.uninstall:
+        uninstall_state = UninstallState()
+        if args.uninstall_all:
+            uninstall_all_roots(
+                destination_root=target_home,
+                args=args,
+                state=uninstall_state,
+                project_mode=False,
+            )
+        else:
+            uninstall_entries(
+                payload=payload,
+                destination_root=target_home,
+                plan=plan,
+                args=args,
+                state=uninstall_state,
+                project_mode=False,
+            )
+        print_uninstall_summary(uninstall_state, mode, target_home, args.dry_run)
+        return 0
+
     home_rewrite_rules = dedupe_replacements(global_replacements(source_home, str(target_home)))
     install_entries(
         payload=payload,

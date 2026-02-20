@@ -19,12 +19,6 @@
       "timeout": 15000
     }
   },
-  "permission": {
-    "edit": "allow",
-    "bash": "allow",
-    "webfetch": "allow",
-    "doom_loop": "ask"
-  },
   "experimental": {
     "disable_paste_summary": true
   }

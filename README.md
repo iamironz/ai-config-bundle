@@ -92,6 +92,36 @@ Install:
 ./install.sh --target-home /home/newuser
 ```
 
+## Uninstall / rollback
+
+Uninstall removes bundle-managed files and restores the latest matching
+`*.bak.<stamp>` backup when present.
+
+Project mode rollback:
+
+```bash
+./install.sh --project-dir /path/to/repo --uninstall
+./install.sh --project-dir /path/to/repo --uninstall --dry-run
+```
+
+Global mode rollback:
+
+```bash
+./install.sh --uninstall
+./install.sh --target-home /home/newuser --uninstall --dry-run
+```
+
+Force cleanup (managed roots):
+
+```bash
+./install.sh --project-dir /path/to/repo --uninstall --uninstall-all
+./install.sh --target-home /home/newuser --uninstall --uninstall-all --dry-run
+```
+
+`--uninstall-all` removes full managed roots recursively (`ai-kb`, `.cursor`,
+`.opencode` / `.config/opencode`) when no root backup exists. Use it only when
+you want a full wipe of bundle-managed areas.
+
 ## Flags
 
 All flags are implemented by [`install_bundle.py`](install_bundle.py) and are forwarded by
@@ -101,8 +131,10 @@ All flags are implemented by [`install_bundle.py`](install_bundle.py) and are fo
 |------|------|---------|
 | `--project-dir <path>` | project | Install repo-local `ai-kb/`, `.cursor/`, `.opencode/` into this directory |
 | `--project-full` | project | Enable `--include-machine-config` and disable `--preserve-existing` for one-click setup |
-| `--include-machine-config` | project | Also install `opencode.json`, `.opencode/dcp.jsonc`, `.cursor/cli.json` |
+| `--include-machine-config` | project | Also install `opencode.json` and `.opencode/dcp.jsonc` |
 | `--target-home <path>` | global | Install under this home directory (default: current `$HOME`) |
+| `--uninstall` | both | Roll back bundle-managed files (restore backups when available, otherwise remove managed files) |
+| `--uninstall-all` | both | Force cleanup of managed roots; requires `--uninstall` |
 | `--preserve-existing` | both | Do not overwrite conflicting destination files |
 | `--install-deps` | both | Try to install missing tools using brew/apt-get |
 | `--dry-run` | both | Print planned actions without writing files |
@@ -127,7 +159,6 @@ If `--include-machine-config` (or `--project-full`):
 
 - `opencode.json` (created or merged with minimal `instructions` entrypoints; avoids preloading `ai-kb/rules/**/*.md`)
 - `.opencode/dcp.jsonc`
-- `.cursor/cli.json` (project-safe subset of the global Cursor CLI config; permissions only)
 
 Project installs do not create or modify repo-root `AGENTS.md`.
 
@@ -141,6 +172,8 @@ Project installs do not create or modify repo-root `AGENTS.md`.
 
 - On conflicts, the installer writes `<file>.bak.<stamp>` before overwriting.
 - It is idempotent: if the rendered destination bytes already match, it does not rewrite or create backups.
+- `--uninstall` restores the latest matching backup for managed files, then removes remaining managed files.
+- `--uninstall-all` targets whole managed roots and can remove user-added files under those roots.
 - With `--preserve-existing`, conflicting files are skipped and reported.
 - `--project-full` disables `--preserve-existing` for one-click setup.
 

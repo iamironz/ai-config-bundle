@@ -13,8 +13,7 @@
     ".cursor/rules",
     ".cursor/hooks",
     ".cursor/mcp.json",
-    ".cursor/hooks.json",
-    ".cursor/cli-config.json"
+    ".cursor/hooks.json"
   ],
   "missing_items": [],
   "text_extensions": [
@@ -55,7 +54,6 @@
     "INDEX.md",
     "LICENSE",
     "README.md",
-    "cli-config.json",
     "dcp.jsonc",
     "hooks.json",
     "opencode.json"

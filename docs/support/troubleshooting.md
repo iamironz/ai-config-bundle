@@ -56,6 +56,28 @@ Cursor resolves this relative to the `.cursor/` directory. If the hook does not 
 
 - Use `--dry-run` to preview changes.
 - Use `--preserve-existing` to avoid overwriting conflicting destination files.
+- Use `--uninstall` to roll back managed files (restores `.bak.<stamp>` backups first when available).
+
+### Uninstall command errors on incompatible flags
+
+`--uninstall` cannot be combined with `--install-deps` or `--preserve-existing`.
+`--uninstall-all` requires `--uninstall`.
+
+Use one of:
+
+```bash
+./install.sh --project-dir /path/to/project --uninstall --dry-run
+./install.sh --target-home /path/to/home --uninstall --dry-run
+./install.sh --project-dir /path/to/project --uninstall --uninstall-all --dry-run
+```
+
+### Force cleanup removed custom files
+
+`--uninstall-all` removes full managed roots recursively. Any user files added
+inside those roots are removed unless a matching root backup is restored.
+
+If you only want to roll back installer-managed files, use `--uninstall` without
+`--uninstall-all`.
 
 ### Project mode fails with "Project directory does not exist"
 
