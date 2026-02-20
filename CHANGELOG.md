@@ -13,6 +13,8 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 - **`.ckignore` and `.gitignore`** in `ai-kb/`: Exclude ck index cache, installer backups, and macOS artifacts from indexing and version control.
 - **ck section in README**: Documents installation, MCP wiring, index freshness, and optional pre-indexing.
 - **Troubleshooting entry** for ck MCP server not working.
+- **Go KB domain** (`ai-kb/rules/golang.md` + `ai-kb/rules/golang/*.md`): Added structured Go platform guidance and wired discovery in `ai-kb/rules/INDEX.md`.
+- **JavaScript/TypeScript KB domain** (`ai-kb/rules/javascript-typescript.md` + `ai-kb/rules/javascript-typescript/*.md`): Added structured JS/TS platform guidance and wired discovery in `ai-kb/rules/INDEX.md`.
 
 ### Changed
 
@@ -20,6 +22,7 @@ The format is based on Keep a Changelog and this project adheres to SemVer.
 - **`review.md` template**: Replaced generic `turbo build/test/check` commands with Android-specific `./gradlew build/test/lint`.
 - **`thoughts-locator.md`**: Fixed typos (researching, equivalent, implementation) and corrected example path.
 - **KB analyzer hooks** (`.py` and `.js`): Fixed path resolution for `~/ai-kb/` prefixed paths using `HOME_KB_PREFIX` constant.
+- **No-pause execution wording**: Updated KB guidance to continue immediately after `<rule_context>` and avoid waiting for optional feedback (`ai-kb/AGENTS.md`, `ai-kb/commands/create_plan.md`, `ai-kb/commands/execute_plan.md`, `ai-kb/commands/INDEX.md`).
 
 ### Removed
 

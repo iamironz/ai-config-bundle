@@ -19,6 +19,8 @@ Preferred workflow:
 | `compose`, `viewmodel`, `activity`, `fragment`, `hilt`, `dagger`, `room`, `datastore` | Android |
 | `swift`, `swiftui`, `uikit`, `combine`, `async/await`, `actor`, `xcode`, `objc` | iOS |
 | `coroutine`, `flow`, `suspend`, `channel`, `dispatcher`, `kmp`, `multiplatform` | Kotlin |
+| `goroutine`, `channel`, `context`, `defer`, `interface{}`, `generics` | Go |
+| `javascript`, `typescript`, `node`, `npm`, `pnpm`, `yarn`, `tsconfig`, `eslint`, `vitest`, `jest` | JavaScript/TypeScript |
 | `layer`, `domain`, `repository`, `usecase`, `dto`, `mapper`, `module`, `dependency` | Architecture |
 | `refactor`, `cleanup`, `metrics`, `complexity`, `directory`, `file size` | Code Quality |
 | `auth`, `token`, `secret`, `api key`, `validation`, `sanitize`, `injection` | Security |
@@ -35,6 +37,8 @@ Preferred workflow:
 | **Android** | `android.md` | See `android.md` -> `Subdocuments` table |
 | **iOS** | `ios.md` | See `ios.md` -> `Subdocuments` table |
 | **Kotlin** | `kotlin.md` | See `kotlin.md` -> `Subdocuments` table |
+| **Go** | `golang.md` | See `golang.md` -> `Subdocuments` table |
+| **JavaScript/TypeScript** | `javascript-typescript.md` | See `javascript-typescript.md` -> `Subdocuments` table |
 | **Architecture** | `architecture.md` | See `architecture.md` -> `Subdocuments` table |
 | **Code Quality** | `code-quality.md` | See `code-quality.md` -> `Subdocuments` table |
 | **Security** | `security.md` | See `security.md` -> `Subdocuments` table |
@@ -74,7 +78,7 @@ Preferred workflow:
 - If an initial implementation is wrong or causes regressions, you MUST add a corrective clause to the appropriate knowledge doc.
 - Scope it correctly:
   - Domain‑agnostic (architecture, errors, testing, security, quality) → update `~/ai-kb/rules/` (Level 1/2).
-  - Platform/domain rules (Android/iOS/Kotlin) → update the matching domain rule file in `~/ai-kb/rules/<domain>/`.
+  - Platform/domain rules (Android/iOS/Kotlin/Go/JavaScript/TypeScript) → update the matching domain rule file in `~/ai-kb/rules/<domain>/`.
   - Project‑specific domain → update the project’s docs (`doc/`, `AGENTS.md`, specs). Do NOT add project details to global rules.
 - The corrective clause must describe the correct approach and follow the existing style/section.
 - If a rule is outdated or incorrect, update or remove it immediately as part of the fix.

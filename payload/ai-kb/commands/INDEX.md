@@ -14,7 +14,7 @@ Tool-specific command files (Cursor/OpenCode) should be thin wrappers that deleg
 
 | Command | Canonical doc | Use for |
 |---------|---------------|---------|
-| `create_plan` | `~/ai-kb/commands/create_plan.md` | Explore options and write a plan (after feedback) |
+| `create_plan` | `~/ai-kb/commands/create_plan.md` | Explore options and draft a plan in the same response (iterate with feedback) |
 | `execute_plan` | `~/ai-kb/commands/execute_plan.md` | Execute an existing plan without editing it |
 | `implement_feature` | `~/ai-kb/commands/implement_feature.md` | Implement a new feature (TDD-first when feasible) |
 | `fix_issue` | `~/ai-kb/commands/fix_issue.md` | Diagnose and fix a bug (TDD-first when feasible) |

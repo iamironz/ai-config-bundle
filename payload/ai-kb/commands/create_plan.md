@@ -4,7 +4,7 @@ description: "(Custom) Create a plan with options and research. Args: [plan requ
 
 # Create Plan
 
-Create a plan only after presenting options and gathering feedback. Write the plan into the conversation history. Do not output implementation files, but you MUST update relevant task tracking or context files to persist the plan and decisions.
+Create a plan in the conversation history and proceed autonomously. Do not create plan files unless explicitly requested.
 
 **Use for:** Planning new features, refactors, or multi-step changes.
 
@@ -15,8 +15,8 @@ Create a plan only after presenting options and gathering feedback. Write the pl
 Command input (text after the command name)
 
 - Provide the planning request and scope.
-- If the request is ambiguous, use the `question` tool to clarify per `~/ai-kb/AGENTS.md`
-- If still ambiguous after responses, proceed with reasonable assumptions and list them up front
+- If the request is ambiguous, ask one blocking clarification (question tool if available).
+- If clarification is unavailable or non-blocking, proceed with reasonable assumptions and list them up front.
 
 ---
 
@@ -33,22 +33,25 @@ Command input (text after the command name)
 
 1. **Present Options First**
    - Provide ≥2 options with pros/cons
-   - Ask 3–4 targeted questions using the `question` tool per `~/ai-kb/AGENTS.md`
-   - Do NOT write the plan until feedback is received
+   - Ask only essential clarifications (question tool if available); avoid blocking on optional feedback
+   - Proceed to a first-draft plan in the same response with explicit assumptions
 
 2. **Gather Research (if needed)**
    - Load and follow `~/ai-kb/rules/mcp-research.md` for tool selection
    - Iterate until results converge or note gaps
    - Summarize findings briefly, cite source URLs
 
-3. **Write the Plan (after feedback)**
+3. **Write the Plan**
    - High-level architecture and component interactions only
    - No code blocks in planning docs
    - Include TDD-first steps (edge cases → tests → implementation)
    - Include phases with status markers (🔄/🚧/✅)
    - Add dependencies and integration points
 
-4. **Finalize**
+4. **Refine (if feedback arrives)**
+   - Incorporate user feedback as a revision pass without restarting unless scope changes materially
+
+5. **Finalize**
    - Append **"## Original Prompt"** at the bottom with the exact prompt used
 
 ---

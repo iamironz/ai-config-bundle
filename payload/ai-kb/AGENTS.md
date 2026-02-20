@@ -71,6 +71,18 @@ Perform the task while adhering to the cited rules. If you violate a cited rule,
 
 Check the result against your own `<rule_context>` block.
 
+## No-Pause Execution Behavior
+
+- Continue autonomously until the task is complete unless blocked by missing critical information.
+- After outputting `<rule_context>`, immediately proceed with the task in the same response (do NOT wait for "continue").
+- Ask questions only for blocking ambiguities; for optional feedback, proceed with explicit assumptions.
+- If the `question` tool is unavailable, ask concise free-text questions or proceed with explicit assumptions.
+- Never block execution for optional feedback; continue with best-effort assumptions and call them out.
+
+## Plan Continuation Policy
+
+- `execute_plan` uses the plan from history above the command; if missing, ask for missing context (question tool if available) and continue with explicit assumptions when feasible.
+
 ## Where Detailed Policies Live
 
 - Command offloading / parallel lanes: `~/ai-kb/rules/command-orchestration.md`

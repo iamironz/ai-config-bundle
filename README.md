@@ -17,6 +17,18 @@ Useful entrypoints in this repo:
 - OpenCode entrypoint: [`payload/.config/opencode/AGENTS.md`](payload/.config/opencode/AGENTS.md)
 - Troubleshooting: [`docs/support/troubleshooting.md`](docs/support/troubleshooting.md)
 
+## KB domain coverage
+
+Platform/language domains in the shared KB include:
+
+- Android
+- iOS
+- Kotlin
+- Go
+- JavaScript/TypeScript
+
+Cross-cutting domains include architecture, code quality, security, concurrency, testing, and error handling.
+
 The installer supports two modes:
 
 - **Project mode (recommended):** install into a single repo (`ai-kb/`, `.cursor/`, `.opencode/`)

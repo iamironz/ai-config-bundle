@@ -15,7 +15,7 @@ Execute a previously written plan exactly as specified.
 Command input (text after the command name)
 
 - Provide any constraints; if a plan exists in history above the command, use it.
-- If no plan exists in history above the command, ask the user to rerun `create_plan` using the `question` tool per `~/ai-kb/AGENTS.md`.
+- If no plan exists in history above the command, request missing context (question tool if available) and continue with explicit assumptions when feasible.
 
 ---
 
@@ -34,7 +34,7 @@ Command input (text after the command name)
 
 1. **Load Plan**
    - Read the plan end-to-end.
-   - Summarize the intended steps and confirm alignment using the `question` tool per `~/ai-kb/AGENTS.md`.
+   - Summarize intended steps and proceed in the same response; ask clarifications only for blocking ambiguities.
    - If the plan lacks TDD-first steps for code changes, proceed with TDD-first implementation and note the mismatch (do NOT edit the plan).
 
 2. **Research Tasks (if any)**
