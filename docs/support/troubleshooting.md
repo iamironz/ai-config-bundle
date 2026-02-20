@@ -42,6 +42,16 @@ If your AI client shows MCP errors for server `ck`:
    - OpenCode: `~/.config/opencode/opencode.json` or `<repo>/opencode.json`
 3. Restart the client so it reloads MCP servers.
 
+### Cursor post-turn analyzer hook not running
+
+The hook in `.cursor/hooks.json` uses a relative path (`./hooks/kb-post-turn-analyzer.py`).
+Cursor resolves this relative to the `.cursor/` directory. If the hook does not fire:
+
+1. Verify `.cursor/hooks.json` exists and contains a `preCompact` entry.
+2. Verify `.cursor/hooks/kb-post-turn-analyzer.py` exists and is executable (`chmod +x`).
+3. Restart Cursor to reload hooks configuration.
+4. Check Cursor output panel for hook execution errors.
+
 ### Unexpected overwrites or backups
 
 - Use `--dry-run` to preview changes.

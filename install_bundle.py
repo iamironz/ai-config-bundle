@@ -582,29 +582,6 @@ def merge_cursor_mcp_file(
         merged_servers[name] = server
         changed = True
 
-    # If ck server already exists, upgrade only if it matches a known legacy bundle value.
-    legacy_ck_commands = {
-        'cd "${workspaceFolder}/ai-kb" 2>/dev/null || cd "${userHome}/ai-kb" && exec ck --serve',
-    }
-    dst_ck = merged_servers.get("ck")
-    src_ck = src_servers.get("ck")
-    if isinstance(dst_ck, dict) and isinstance(src_ck, dict):
-        dst_args = dst_ck.get("args")
-        src_args = src_ck.get("args")
-        if (
-            isinstance(dst_args, list)
-            and len(dst_args) >= 2
-            and dst_args[0] == "-lc"
-            and isinstance(dst_args[1], str)
-            and dst_args[1] in legacy_ck_commands
-            and isinstance(src_args, list)
-            and len(src_args) >= 2
-            and src_args[0] == "-lc"
-            and isinstance(src_args[1], str)
-        ):
-            dst_args[1] = src_args[1]
-            changed = True
-
     if not changed:
         return
 
@@ -716,35 +693,6 @@ def merge_opencode_json_file(
                 }
             dst_mcp["ck"] = ck_entry
             changed = True
-        else:
-            # Upgrade our legacy bundle command in-place (do not clobber custom configs).
-            existing = dst_mcp.get("ck")
-            legacy_commands = {
-                'cd "ai-kb" 2>/dev/null || cd "$HOME/ai-kb" && exec ck --serve',
-                'cd "ai-kb" 2>/dev/null || { root="$(git rev-parse --show-toplevel 2>/dev/null)" && cd "${root}/ai-kb"; } && exec ck --serve',
-            }
-            upgraded_command = (
-                'dir="$PWD"; while [ -n "$dir" ] && [ "$dir" != "/" ]; do '
-                'if [ -d "$dir/ai-kb" ]; then cd "$dir/ai-kb" 2>/dev/null && exec ck --serve; fi; '
-                'next="$(dirname "$dir")"; [ "$next" = "$dir" ] && break; dir="$next"; '
-                'done; cd "$HOME/ai-kb" 2>/dev/null && exec ck --serve; '
-                'echo "ck MCP: unable to locate ai-kb" >&2; exit 1'
-            )
-            if isinstance(existing, dict):
-                cmd = existing.get("command")
-                if isinstance(cmd, str) and cmd in legacy_commands:
-                    existing["command"] = upgraded_command
-                    changed = True
-                elif (
-                    isinstance(cmd, list)
-                    and len(cmd) >= 3
-                    and cmd[0] == "bash"
-                    and cmd[1] == "-lc"
-                    and isinstance(cmd[2], str)
-                    and cmd[2] in legacy_commands
-                ):
-                    cmd[2] = upgraded_command
-                    changed = True
     else:
         state.notes.append("Skipped opencode.json MCP merge; `mcp` is not an object.")
 
@@ -1024,35 +972,6 @@ def ensure_project_opencode_json(
                 "timeout": 15000,
             }
             changed = True
-        else:
-            # Upgrade our legacy bundle command in-place (do not clobber custom configs).
-            legacy_commands = {
-                'cd "ai-kb" 2>/dev/null || cd "$HOME/ai-kb" && exec ck --serve',
-                'cd "ai-kb" 2>/dev/null || { root="$(git rev-parse --show-toplevel 2>/dev/null)" && cd "${root}/ai-kb"; } && exec ck --serve',
-            }
-            upgraded_command = (
-                'dir="$PWD"; while [ -n "$dir" ] && [ "$dir" != "/" ]; do '
-                'if [ -d "$dir/ai-kb" ]; then cd "$dir/ai-kb" 2>/dev/null && exec ck --serve; fi; '
-                'next="$(dirname "$dir")"; [ "$next" = "$dir" ] && break; dir="$next"; '
-                'done; cd "$HOME/ai-kb" 2>/dev/null && exec ck --serve; '
-                'echo "ck MCP: unable to locate ai-kb" >&2; exit 1'
-            )
-            existing = mcp.get("ck")
-            if isinstance(existing, dict):
-                cmd = existing.get("command")
-                if isinstance(cmd, str) and cmd in legacy_commands:
-                    existing["command"] = upgraded_command
-                    changed = True
-                elif (
-                    isinstance(cmd, list)
-                    and len(cmd) >= 3
-                    and cmd[0] == "bash"
-                    and cmd[1] == "-lc"
-                    and isinstance(cmd[2], str)
-                    and cmd[2] in legacy_commands
-                ):
-                    cmd[2] = upgraded_command
-                    changed = True
     else:
         state.notes.append("Skipped opencode.json MCP merge; `mcp` is not an object.")
 

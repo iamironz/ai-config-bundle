@@ -83,14 +83,15 @@ Constraints:
    - Create new rule/command only when no existing target fits cleanly.
 
 3. **Deduplicate**
-   - If `~/.cursor/kb-recommendations/` exists: scan recent `*.md` for similar content and skip duplicates.
-   - If `~/.config/opencode/kb-recommendations/` exists: scan recent `*.md` for similar content and skip duplicates.
+   - Scan recommendation queues for similar content and skip duplicates.
+     - Project-local (preferred): `.cursor/kb-recommendations/`, `.opencode/kb-recommendations/`
+     - Global fallback: `~/.cursor/kb-recommendations/`, `~/.config/opencode/kb-recommendations/`
    - If the target KB doc exists (`target_path`): skip if it already contains equivalent guidance.
 
 4. **Write recommendation file(s)**
-   - Write to any of these that exist (create directory if missing and safe to do so):
-     - `~/.cursor/kb-recommendations/`
-     - `~/.config/opencode/kb-recommendations/`
+   - Write to any recommendation queue that exists (create directory if missing and safe to do so).
+     - Project-local (preferred): `.cursor/kb-recommendations/`, `.opencode/kb-recommendations/`
+     - Global fallback: `~/.cursor/kb-recommendations/`, `~/.config/opencode/kb-recommendations/`
    - Filename: `<YYYYMMDD-HHMMSS>-manual-suggest_kb_updates.md`
 
 Use this markdown structure:

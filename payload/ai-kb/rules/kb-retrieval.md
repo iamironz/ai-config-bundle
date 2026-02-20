@@ -12,16 +12,21 @@ manually scanning or preloading large parts of `~/ai-kb/`.
 
 ## Search Strategy
 
+All ck search tools require a **`path`** parameter. Use `path: "."` to search the entire KB
+(ck is started with its working directory set to `ai-kb/`).
+
 - Use `semantic_search` for concepts (best default for KB discovery).
 - Use `hybrid_search` when you have both concept + specific keywords.
 - Use `regex_search` for exact strings, filenames, headings, or tables (e.g., `Subdocuments`).
+- Use `lexical_search` for keyword matching when you know specific terms.
 
 Recommended strict defaults (tune by refining queries, not by lowering threshold):
 
-- `semantic_search`: `top_k` 10-20, `threshold` 0.8, `snippet_length` ~200.
+- `semantic_search`: `path: "."`, `top_k` 10-20, `threshold` 0.8, `snippet_length` ~200.
 - If you need more local context, increase `snippet_length` (e.g., 300-600) before reading full files.
-- `hybrid_search`: `threshold` ~0.02 (RRF scale), `top_k` 10-25.
-- `regex_search`: keep patterns narrow to avoid noisy results.
+- `hybrid_search`: `path: "."`, `threshold` ~0.02 (RRF scale), `top_k` 10-25.
+- `regex_search`: `path: "."`, keep patterns narrow to avoid noisy results.
+- `lexical_search`: `path: "."`, useful when semantic misses exact terminology.
 
 ## Discovery Loop (Aggressive, High-Signal)
 
@@ -44,6 +49,38 @@ Instead of reading KB structure docs end-to-end:
 - Use `regex_search` on `rules/INDEX.md` for domain keywords if you need a deterministic fallback.
 - Use `regex_search` for `Subdocuments` inside a Level 1 rule to locate relevant Level 2 subdocs.
 - Use `semantic_search` directly across the KB for the user’s intent (preferred).
+
+## Concrete Example
+
+User asks: "How should I handle Compose recomposition?"
+
+```
+1. semantic_search(path=".", query="Compose recomposition side effects", top_k=10, threshold=0.8)
+   → finds rules/android/compose.md (score 0.85)
+
+2. Read the snippet; if it references a Subdocuments table, follow up:
+   regex_search(path=".", query="Subdocuments", include_patterns=["rules/android/compose.md"])
+
+3. Load full file only if snippet is insufficient:
+   Read rules/android/compose.md
+
+4. Cross-cut: also load architecture.md, code-quality.md, error-handling.md
+   (use semantic_search or read directly — they are always-load rules).
+```
+
+## Available ck Tools
+
+| Tool | Use for |
+|------|---------|
+| `semantic_search` | Concept/meaning-based discovery (primary) |
+| `hybrid_search` | Combined semantic + keyword matching |
+| `lexical_search` | Keyword/term matching |
+| `regex_search` | Exact strings, headings, filenames |
+| `reindex` | Force re-index after bulk KB edits |
+| `index_status` | Check index health and file/chunk counts |
+| `health_check` | Verify ck server is running |
+
+All search/index tools require `path` (use `"."` for the full KB).
 
 ## Index Freshness (Automatic Delta Indexing)
 

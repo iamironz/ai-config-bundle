@@ -8,6 +8,10 @@ Use this rule to keep the knowledge base updated from real implementation learni
 - OpenCode plugin output: `~/.config/opencode/kb-recommendations/*.md`
 - Manual command output: `suggest_kb_updates` (writes to the same recommendation queues)
 
+> **Project mode:** The installer rewrites `~/` paths to project-relative paths (e.g.,
+> `.cursor/kb-recommendations/`, `.opencode/kb-recommendations/`). The analyzers check for
+> project-local directories first and fall back to global paths when absent.
+
 ## Maintenance Workflow
 
 1. Review new recommendation files and validate relevance.
