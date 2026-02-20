@@ -6,9 +6,10 @@
 
 Preferred workflow:
 
-1. Use ck (MCP server `ck`) to search across `~/ai-kb` for the most relevant rules/commands (high threshold; run multiple searches before lowering threshold).
-2. Follow only the small set of top matches (high relevance) and cite them in `<rule_context>`.
-3. Use this index as a fallback if ck is unavailable.
+1. Use ck (MCP server `ck`) to search across `~/ai-kb` for the most relevant rules/commands.
+2. Run at least two ck searches (intent + keyword-refined) before loading docs.
+3. Follow only the small set of top matches (high relevance) and cite them in `<rule_context>`.
+4. Use this index as a fallback only if ck is unavailable (record reason in `<rule_context>`).
 
 ## Fallback Keyword Matching (when ck is unavailable)
 

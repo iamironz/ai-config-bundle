@@ -10,6 +10,16 @@ manually scanning or preloading large parts of `~/ai-kb/`.
 - Prefer using ck snippets first; read full KB docs only when snippets are insufficient.
 - Use `<rule_context>` to prove what you loaded and what you enforce.
 
+## Enforcement Contract (Mandatory)
+
+- ck-first is mandatory, not optional.
+- Before loading KB docs, run at least two ck searches:
+  - one intent-level query
+  - one keyword-refined query based on extracted task terms
+- Manual fallback (`rules/INDEX.md` table scan) is allowed only if ck is unavailable or failing.
+- If fallback is used, explicitly record the ck failure reason in `<rule_context>`.
+- If ck is available, do not start with manual directory/index scanning.
+
 ## Search Strategy
 
 All ck search tools require a **`path`** parameter. Use `path: "."` to search the entire KB
@@ -32,10 +42,11 @@ Recommended strict defaults (tune by refining queries, not by lowering threshold
 
 Treat ck discovery with the same aggressiveness as the fallback `rules/INDEX.md` workflow:
 
-1. Run `semantic_search` (threshold stays high) on the user's intent.
-2. If results are thin, run a second `semantic_search` with a more specific query (add concrete nouns, domain terms, and expected artifacts like "command", "rule", "template").
-3. Use `hybrid_search` to require both meaning + keywords when you know specific terms.
-4. Use `regex_search` to locate:
+1. Extract 4-10 keywords from the user request (domain, symbols, artifacts, errors).
+2. Run `semantic_search` (threshold stays high) on the user's intent.
+3. Run a second query with refined keywords (semantic or hybrid).
+4. Use `hybrid_search` to require both meaning + keywords when you know specific terms.
+5. Use `regex_search` to locate:
    - entrypoints (`AGENTS.md`, `rules/INDEX.md`, `commands/INDEX.md`)
    - headings like `Subdocuments`
    - exact domain terms (android, ios, kotlin, security, etc.)
@@ -49,6 +60,23 @@ Instead of reading KB structure docs end-to-end:
 - Use `regex_search` on `rules/INDEX.md` for domain keywords if you need a deterministic fallback.
 - Use `regex_search` for `Subdocuments` inside a Level 1 rule to locate relevant Level 2 subdocs.
 - Use `semantic_search` directly across the KB for the user’s intent (preferred).
+
+## Prohibited Retrieval Patterns
+
+- Reading `rules/INDEX.md` first when ck is available.
+- Manually scanning large portions of `~/ai-kb/rules/**` before ck discovery.
+- Loading many full docs without first checking ck snippets/top matches.
+- Falling back to index flow without documenting why ck could not be used.
+
+## `<rule_context>` Evidence Requirements
+
+Include these fields in `<rule_context>` for every non-trivial task:
+
+- `Matched keywords` (derived from user request)
+- `CK status` (`available` or `unavailable` with reason)
+- `CK queries` (the exact query strings used)
+- `CK-selected docs` (paths selected from search results)
+- `Loaded` and `Enforcing` (as required by `AGENTS.md`)
 
 ## Concrete Example
 

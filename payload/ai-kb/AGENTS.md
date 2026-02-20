@@ -41,9 +41,21 @@ For every task (plan, code, review), execute this loop.
 
 ### 1) Discover (ck-first)
 
-1. Use ck (MCP server `ck`) to search `~/ai-kb` for relevant rules/commands by meaning and keywords (high threshold; follow only top matches).
-2. Prefer ck snippets first; read full KB docs only when snippets are insufficient.
-3. If ck is unavailable, fall back to `~/ai-kb/rules/INDEX.md` keyword matching.
+1. Extract task keywords first (domain terms, artifacts, constraints, error text if present).
+2. Use ck (MCP server `ck`) to search `~/ai-kb` for relevant rules/commands by meaning and keywords.
+3. Run at least two ck queries before loading docs:
+   - Query A: intent-level semantic/hybrid query
+   - Query B: refined query including extracted keywords
+4. Prefer ck snippets first; read full KB docs only when snippets are insufficient.
+5. If ck is unavailable, record the reason and fall back to `~/ai-kb/rules/INDEX.md` keyword matching.
+
+#### CK Discovery Contract (Mandatory)
+
+- ck-first is required; fallback index reading is a contingency path only.
+- Do not start by manually scanning `rules/INDEX.md` tables when ck is available.
+- Do not manually browse `~/ai-kb/rules/**` before ck discovery.
+- Use ck `regex_search` for `Subdocuments` to discover Level 2 docs from selected Level 1 rules.
+- Missing ck evidence in `<rule_context>` means discovery is incomplete.
 
 ### 2) Load (Thorough)
 
@@ -58,6 +70,9 @@ Before writing code or plans, output a `<rule_context>` block listing what you l
 ```xml
 <rule_context>
 - Matched keywords: [...]
+- CK status: available | unavailable (<reason>)
+- CK queries: ["<query A>", "<query B>", ...]
+- CK-selected docs: [~/ai-kb/rules/<...>.md, ~/ai-kb/commands/<...>.md, ...]
 - Loaded: ~/ai-kb/rules/<...>.md, ...
 - Enforcing: "<quote>" (~/ai-kb/rules/<path>.md)
 </rule_context>
