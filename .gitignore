@@ -29,3 +29,10 @@ dist/
 
 # Local bundle reset backups (never commit)
 _bundle_reset_backups/
+
+# Local runtime state (never commit)
+.ck/
+.opencode/checkpoints/
+.opencode/state/
+.opencode/traces/
+*.bak.*

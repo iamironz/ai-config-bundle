@@ -1,0 +1,12 @@
+{
+  "id": "mobile",
+  "description": "Prefer simulator/device MCPs when the workspace looks like an iOS or Android project.",
+  "match": {
+    "any": ["android", "ios", "Podfile", "build.gradle", "build.gradle.kts"]
+  },
+  "prioritizeMcp": ["mobile", "mobile-xray"],
+  "instructions": [
+    "Reach for simulator/device tooling before browser automation when validating mobile flows.",
+    "Use screenshots and element inspection as evidence for UI/runtime validation."
+  ]
+}

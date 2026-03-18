@@ -8,6 +8,11 @@ Tool-specific command files (Cursor/OpenCode) should be thin wrappers that deleg
 - Command input is the text after the command name; treat it as the request and constraints for the invocation.
 - Follow `~/ai-kb/AGENTS.md` for the operational loop and `<rule_context>` citation protocol.
 - For command offloading/parallelization policy: `~/ai-kb/rules/command-orchestration.md`.
+- Parallel background subagents are the default execution mode across commands unless the user explicitly requests sequential/main-thread execution.
+- Background-first is mandatory for implementation, analysis, and research work; keep main-thread work to orchestration and synthesis.
+- For non-trivial natural-language requests, load `command-parity-router` skill first and infer command-intent automatically.
+- If `command-parity-router` cannot be loaded, apply `~/ai-kb/rules/skill-routing.md` directly.
+- When runtime state, plugin hooks, internal sessions, or nested delegation are in scope, also load `~/ai-kb/rules/plugin-safety.md` and `~/ai-kb/rules/delegation-depth.md`.
 - For KB recommendation workflow: `~/ai-kb/rules/kb-maintenance.md`.
 
 ## Command Catalog

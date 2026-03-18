@@ -28,6 +28,9 @@ Preferred workflow:
 | `thread`, `mutex`, `lock`, `atomic`, `race`, `concurrent`, `parallel` | Concurrency |
 | `test`, `mock`, `stub`, `fixture`, `assertion`, `coverage`, `tdd` | Testing |
 | `error`, `exception`, `http status`, `retry`, `fallback`, `circuit breaker` | Errors |
+| `plugin`, `hook`, `internal session`, `compaction`, `cascade`, `fork bomb`, `cooldown`, `circuit breaker` | Plugin Safety |
+| `subagent`, `delegation`, `depth`, `nesting`, `task tool`, `internal session` | Delegation Depth |
+| `brainstorm`, `ideation`, `alternatives`, `tradeoff`, `diverge`, `converge` | Diverge-Converge |
 
 ---
 
@@ -63,12 +66,22 @@ Preferred workflow:
 - `kb-retrieval.md` — ck-first KB discovery and indexing expectations.
 - `mcp-research.md` — MCP tool selection and research flow.
 - `command-orchestration.md` — command-level offloading model and skill bundles.
+- `skill-routing.md` — automatic intent-to-workflow routing via skills.
+- `plugin-safety.md` — hook safety, internal session handling, and cascade-prevention patterns.
+- `delegation-depth.md` — nested task ceilings, safe defaults, and runtime delegation exceptions.
+- `diverge-converge.md` — exploratory branching and synthesis rubric.
 - `kb-maintenance.md` — process post-turn KB recommendations and keep index/commands aligned.
 - `defense-in-depth.md` — validation layers, allowlist-first thinking, trust boundaries.
 - `fail-fast.md` — guard clauses, validation ordering, error aggregation strategies.
 - `logging.md` — structured log format and anti-patterns (no secrets/PII).
 
 > **THOROUGHNESS OVER EFFICIENCY:** When uncertain whether a domain applies, LOAD IT. The cost of missing a relevant rule far exceeds the cost of reading extra context. Better to cite 10 rules than miss 1 critical one.
+>
+> **PARALLEL DEFAULT RULE:** Parallel background subagents are the default execution mode. Do not require users to request this explicitly.
+>
+> **BACKGROUND-FIRST RULE:** If implementation/analysis/research can be delegated, it must be delegated. Keep main-thread work to orchestration, merge/synthesis, shared mutable-state transitions, and blocking clarifications.
+>
+> **CONTEXT TRANSFER RULE:** Every delegated Task must include the full Task Context Packet (objective + DoD, scope/assumptions, relevant artifacts, constraints/rules, expected output format); for parallel lanes include shared context in each lane plus lane-specific objectives, and do not dispatch under-specified tasks.
 >
 > **NO PAUSE RULE:** After emitting `<rule_context>`, continue with the task in the same response. Never stop and wait for “continue” unless explicitly blocked by missing information.
 

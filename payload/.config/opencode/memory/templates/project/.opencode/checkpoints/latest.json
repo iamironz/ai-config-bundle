@@ -1,0 +1,15 @@
+{
+  "sessionID": "validate-runtime-resume-next",
+  "workspace": "project",
+  "workspaceId": "7a66accfe7d4",
+  "changed": false,
+  "gates": {
+    "tests": true,
+    "build": true,
+    "docs": false
+  },
+  "questions": 0,
+  "lastTool": "bash",
+  "lastTitle": "Test validation",
+  "lastUpdatedAt": "2026-03-11T17:04:18.275Z"
+}

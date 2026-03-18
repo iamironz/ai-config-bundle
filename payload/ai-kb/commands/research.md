@@ -37,6 +37,9 @@ Command input (text after the command name)
 
 2. **Execute Research Loop**
    - Run multiple queries per item across relevant MCP tools
+   - Choose the best available search/research tool family for the job instead of defaulting
+     to one provider; examples include Kagi, Perplexity, `open-websearch`, or browser-driven
+     Google-style search when those are available
    - Prefer official docs for APIs, signatures, and version-specific behavior
    - Use web search for recent breakages, migration notes, and real-world fixes
    - Use repository search/examples for implementation patterns and edge cases

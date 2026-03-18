@@ -1,0 +1,98 @@
+# Operational Context Index
+
+**Shared KB:** Canonical rules for tools that load `ai-kb/`.
+
+## KB Retrieval (ck-first)
+
+Preferred workflow:
+
+1. Use ck (MCP server `ck`) to search across `ai-kb` for the most relevant rules/commands.
+2. Run at least two ck searches (intent + keyword-refined) before loading docs.
+3. Follow only the small set of top matches (high relevance) and cite them in `<rule_context>`.
+4. Use this index as a fallback only if ck is unavailable (record reason in `<rule_context>`).
+
+## Fallback Keyword Matching (when ck is unavailable)
+
+**Scan user request for these keywords to identify which rules to load:**
+
+| Keywords | Load Rules |
+|----------|------------|
+| `compose`, `viewmodel`, `activity`, `fragment`, `hilt`, `dagger`, `room`, `datastore` | Android |
+| `swift`, `swiftui`, `uikit`, `combine`, `async/await`, `actor`, `xcode`, `objc` | iOS |
+| `coroutine`, `flow`, `suspend`, `channel`, `dispatcher`, `kmp`, `multiplatform` | Kotlin |
+| `goroutine`, `channel`, `context`, `defer`, `interface{}`, `generics` | Go |
+| `javascript`, `typescript`, `node`, `npm`, `pnpm`, `yarn`, `tsconfig`, `eslint`, `vitest`, `jest` | JavaScript/TypeScript |
+| `layer`, `domain`, `repository`, `usecase`, `dto`, `mapper`, `module`, `dependency` | Architecture |
+| `refactor`, `cleanup`, `metrics`, `complexity`, `directory`, `file size` | Code Quality |
+| `auth`, `token`, `secret`, `api key`, `validation`, `sanitize`, `injection` | Security |
+| `thread`, `mutex`, `lock`, `atomic`, `race`, `concurrent`, `parallel` | Concurrency |
+| `test`, `mock`, `stub`, `fixture`, `assertion`, `coverage`, `tdd` | Testing |
+| `error`, `exception`, `http status`, `retry`, `fallback`, `circuit breaker` | Errors |
+| `plugin`, `hook`, `internal session`, `compaction`, `cascade`, `fork bomb`, `cooldown`, `circuit breaker` | Plugin Safety |
+| `subagent`, `delegation`, `depth`, `nesting`, `task tool`, `internal session` | Delegation Depth |
+| `brainstorm`, `ideation`, `alternatives`, `tradeoff`, `diverge`, `converge` | Diverge-Converge |
+
+---
+
+## Domain Clusters
+
+| Domain | Level 1 | Level 2 discovery |
+|--------|---------|------------------|
+| **Android** | `android.md` | See `android.md` -> `Subdocuments` table |
+| **iOS** | `ios.md` | See `ios.md` -> `Subdocuments` table |
+| **Kotlin** | `kotlin.md` | See `kotlin.md` -> `Subdocuments` table |
+| **Go** | `golang.md` | See `golang.md` -> `Subdocuments` table |
+| **JavaScript/TypeScript** | `javascript-typescript.md` | See `javascript-typescript.md` -> `Subdocuments` table |
+| **Architecture** | `architecture.md` | See `architecture.md` -> `Subdocuments` table |
+| **Code Quality** | `code-quality.md` | See `code-quality.md` -> `Subdocuments` table |
+| **Security** | `security.md` | See `security.md` -> `Subdocuments` table |
+| **Concurrency** | `thread-safety.md` | See `thread-safety.md` -> `Subdocuments` table |
+| **Testing** | `tdd.md` | See `tdd.md` -> `Subdocuments` table |
+| **Errors** | `error-handling.md` | See `error-handling.md` -> `Subdocuments` table |
+
+---
+
+## Loading Protocol
+
+1. Use ck search (preferred) to identify relevant rules/commands for the request.
+2. If ck is unavailable, **match keywords** from user request to table above.
+3. **Load ALL Level 1 files** for matched domains AND related domains.
+4. For each directly relevant domain, load the Level 2 subdocs listed in the Level 1 rule's `Subdocuments` table.
+5. **Always load:** `architecture.md`, `code-quality.md`, `error-handling.md` for any code task.
+6. **Proactively expand:** If task mentions "API", also load security, error-handling. If "UI", also load architecture.
+
+## Cross-Cutting Rules
+
+- `kb-retrieval.md` — ck-first KB discovery and indexing expectations.
+- `mcp-research.md` — MCP tool selection and research flow.
+- `command-orchestration.md` — command-level offloading model and skill bundles.
+- `skill-routing.md` — automatic intent-to-workflow routing via skills.
+- `plugin-safety.md` — hook safety, internal session handling, and cascade-prevention patterns.
+- `delegation-depth.md` — nested task ceilings, safe defaults, and runtime delegation exceptions.
+- `diverge-converge.md` — exploratory branching and synthesis rubric.
+- `kb-maintenance.md` — process post-turn KB recommendations and keep index/commands aligned.
+- `defense-in-depth.md` — validation layers, allowlist-first thinking, trust boundaries.
+- `fail-fast.md` — guard clauses, validation ordering, error aggregation strategies.
+- `logging.md` — structured log format and anti-patterns (no secrets/PII).
+
+> **THOROUGHNESS OVER EFFICIENCY:** When uncertain whether a domain applies, LOAD IT. The cost of missing a relevant rule far exceeds the cost of reading extra context. Better to cite 10 rules than miss 1 critical one.
+>
+> **PARALLEL DEFAULT RULE:** Parallel background subagents are the default execution mode. Do not require users to request this explicitly.
+>
+> **BACKGROUND-FIRST RULE:** If implementation/analysis/research can be delegated, it must be delegated. Keep main-thread work to orchestration, merge/synthesis, shared mutable-state transitions, and blocking clarifications.
+>
+> **CONTEXT TRANSFER RULE:** Every delegated Task must include the full Task Context Packet (objective + DoD, scope/assumptions, relevant artifacts, constraints/rules, expected output format); for parallel lanes include shared context in each lane plus lane-specific objectives, and do not dispatch under-specified tasks.
+>
+> **NO PAUSE RULE:** After emitting `<rule_context>`, continue with the task in the same response. Never stop and wait for “continue” unless explicitly blocked by missing information.
+
+---
+
+## KB Self‑Repair Protocol
+
+- If an initial implementation is wrong or causes regressions, you MUST add a corrective clause to the appropriate knowledge doc.
+- Scope it correctly:
+  - Domain‑agnostic (architecture, errors, testing, security, quality) → update `ai-kb/rules/` (Level 1/2).
+  - Platform/domain rules (Android/iOS/Kotlin/Go/JavaScript/TypeScript) → update the matching domain rule file in `ai-kb/rules/<domain>/`.
+  - Project‑specific domain → update the project’s docs (`doc/`, `AGENTS.md`, specs). Do NOT add project details to global rules.
+- The corrective clause must describe the correct approach and follow the existing style/section.
+- If a rule is outdated or incorrect, update or remove it immediately as part of the fix.

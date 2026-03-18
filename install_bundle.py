@@ -139,7 +139,9 @@ def install_missing_deps(missing: list[str]) -> None:
             print("Installing via cargo: ck-search")
             subprocess.run(["cargo", "install", "ck-search"], check=False)
         else:
-            print("To install ck-search: cargo install ck-search (requires Rust toolchain)")
+            print(
+                "To install ck-search: cargo install ck-search (requires Rust toolchain)"
+            )
         missing = [m for m in missing if m != "ck"]
         if not missing:
             return
@@ -332,6 +334,129 @@ def copy_tree(
             exts,
             basenames,
         )
+
+
+def scaffold_file_if_missing(
+    src: Path,
+    dst: Path,
+    args: argparse.Namespace,
+    state: InstallState,
+    replacements: list[tuple[str, str]],
+    exts: set[str],
+    basenames: set[str],
+) -> None:
+    if dst.exists() or dst.is_symlink():
+        return
+
+    rendered_text = render_text_with_replacements(
+        src=src,
+        replacements=replacements,
+        exts=exts,
+        basenames=basenames,
+        state=state,
+    )
+
+    print(f"Scaffold file: {src} -> {dst}")
+    state.planned_files.append((src, dst))
+    state.created_files += 1
+    state.created_paths.add(dst)
+    if args.dry_run:
+        return
+
+    dst.parent.mkdir(parents=True, exist_ok=True)
+    if rendered_text is not None:
+        dst.write_text(rendered_text, encoding="utf-8")
+        try:
+            shutil.copymode(src, dst)
+        except Exception:
+            pass
+        return
+
+    shutil.copy2(src, dst)
+
+
+def ensure_project_checkpoint_ignore(
+    project_root: Path,
+    args: argparse.Namespace,
+    state: InstallState,
+) -> None:
+    ignore_line = ".opencode/checkpoints/"
+    gitignore_path = project_root / ".gitignore"
+    existing = ""
+    if gitignore_path.exists():
+        try:
+            existing = gitignore_path.read_text(encoding="utf-8")
+        except Exception as exc:
+            state.notes.append(
+                f"Could not read .gitignore for checkpoint ignore merge: {exc}"
+            )
+            return
+
+    if ignore_line in existing:
+        return
+
+    if gitignore_path.exists() and args.preserve_existing:
+        state.notes.append(
+            "Skipped .gitignore checkpoint ignore merge because preserve-existing is set."
+        )
+        return
+
+    next_text = existing
+    if next_text and not next_text.endswith("\n"):
+        next_text += "\n"
+    next_text += f"{ignore_line}\n"
+
+    print(f"Ensure checkpoint ignore: {gitignore_path}")
+    state.planned_files.append((project_root / ".opencode", gitignore_path))
+    if args.dry_run:
+        return
+
+    if existing:
+        backup_existing_path(
+            gitignore_path,
+            state,
+            datetime.now().strftime("%Y%m%d-%H%M%S"),
+            args.dry_run,
+        )
+    gitignore_path.write_text(next_text, encoding="utf-8")
+    if gitignore_path.exists():
+        state.overwritten_files += 1 if existing else 0
+        if not existing:
+            state.created_files += 1
+            state.created_paths.add(gitignore_path)
+
+
+def scaffold_project_runtime_state(
+    payload: Path,
+    project_root: Path,
+    args: argparse.Namespace,
+    state: InstallState,
+    replacements: list[tuple[str, str]],
+    exts: set[str],
+    basenames: set[str],
+) -> None:
+    template_root = payload / ".config/opencode/memory/templates/project/.opencode"
+    scaffold_paths = [
+        "README.md",
+        "checkpoints/latest.json",
+        "memory/current.md",
+        "memory/decisions.md",
+        "memory/handoff.md",
+        "overlays.jsonc",
+    ]
+
+    for relative_path in scaffold_paths:
+        scaffold_file_if_missing(
+            template_root / relative_path,
+            project_root / ".opencode" / relative_path,
+            args,
+            state,
+            replacements,
+            exts,
+            basenames,
+        )
+
+    ensure_project_checkpoint_ignore(project_root, args, state)
 
 
 def copy_entry(
@@ -604,6 +729,9 @@ def merge_cursor_mcp_file(
     changed = False
     for name, server in src_servers.items():
         if name in merged_servers:
+            if name == "ck" and merged_servers[name] != portable_cursor_ck_mcp_entry():
+                merged_servers[name] = portable_cursor_ck_mcp_entry()
+                changed = True
             continue
         merged_servers[name] = server
         changed = True
@@ -626,6 +754,451 @@ def merge_cursor_mcp_file(
     state.planned_files.append((src, dst))
 
 
+def portable_ck_command() -> str:
+    return (
+        'dir="$PWD"; '
+        'while [ -n "$dir" ] && [ "$dir" != "/" ]; do '
+        'if [ -d "$dir/ai-kb" ]; then cd "$dir/ai-kb" 2>/dev/null && exec ck --serve; fi; '
+        'next="$(dirname "$dir")"; [ "$next" = "$dir" ] && break; dir="$next"; '
+        'done; '
+        'cd "$HOME/.config/opencode/ai-kb" 2>/dev/null && exec ck --serve; '
+        'cd "$HOME/ai-kb" 2>/dev/null && exec ck --serve; '
+        'echo "ck MCP: unable to locate ai-kb" >&2; exit 1'
+    )
+
+
+def portable_ck_mcp_entry() -> dict[str, object]:
+    return {
+        "type": "local",
+        "command": ["bash", "-lc", portable_ck_command()],
+        "enabled": True,
+        "timeout": 15000,
+    }
+
+
+def portable_cursor_ck_mcp_entry() -> dict[str, object]:
+    return {
+        "type": "stdio",
+        "command": "bash",
+        "args": ["-lc", portable_ck_command()],
+    }
+
+
+def runtime_instruction_paths(
+    opencode_root: str, project_root: Path | None = None
+) -> list[str]:
+    instructions: list[str] = []
+    if project_root is not None and (project_root / "AGENTS.md").exists():
+        instructions.append("AGENTS.md")
+    instructions.extend(
+        [
+            f"{opencode_root}/AGENTS.md",
+            f"{opencode_root}/prime-directive.md",
+            f"{opencode_root}/runtime/bootstrap.md",
+        ]
+    )
+    return instructions
+
+
+def runtime_plugin_paths(
+    opencode_root: str, project_root: Path | None = None
+) -> list[str]:
+    if project_root is not None:
+        plugin_root = (project_root / opencode_root / "plugins").resolve()
+        return [
+            (plugin_root / "autonomy-runtime.js").as_uri(),
+            (plugin_root / "kb-post-turn-analyzer.js").as_uri(),
+        ]
+    return [
+        f"{opencode_root}/plugins/autonomy-runtime.js",
+        f"{opencode_root}/plugins/kb-post-turn-analyzer.js",
+    ]
+
+
+def parse_markdown_frontmatter(text: str) -> tuple[dict[str, object], str]:
+    if not text.startswith("---\n"):
+        return {}, text.strip()
+    end = text.find("\n---\n", 4)
+    if end == -1:
+        return {}, text.strip()
+
+    frontmatter_text = text[4:end]
+    body = text[end + 5 :].strip()
+    frontmatter: dict[str, object] = {}
+    for raw_line in frontmatter_text.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith("#") or ":" not in line:
+            continue
+        key, value = line.split(":", 1)
+        key = key.strip()
+        value = value.strip()
+        if value.startswith(('"', "'")) and value.endswith(('"', "'")) and len(value) >= 2:
+            value = value[1:-1]
+        if key == "steps":
+            frontmatter[key] = int(value)
+        else:
+            frontmatter[key] = value
+    return frontmatter, body
+
+
+def load_primary_agent_specs() -> dict[str, dict[str, object]]:
+    docs_root = Path(__file__).resolve().parent / "ai-kb" / "agents"
+    specs: dict[str, dict[str, object]] = {}
+    for name in ["build", "plan", "explore", "summary", "compaction", "title"]:
+        path = docs_root / f"{name}.md"
+        frontmatter, body = parse_markdown_frontmatter(path.read_text(encoding="utf-8"))
+        entry: dict[str, object] = {}
+        for key in ["mode", "description", "steps"]:
+            if key in frontmatter:
+                entry[key] = frontmatter[key]
+        if body:
+            entry["prompt"] = body
+        specs[name] = entry
+    return specs
+
+
+def runtime_agent_defaults() -> dict[str, dict[str, object]]:
+    return load_primary_agent_specs()
+
+
+def normalize_runtime_agents(parsed: dict[str, object], defaults: dict[str, object]) -> bool:
+    agents = parsed.get("agent")
+    default_agents = defaults.get("agent")
+    if not isinstance(agents, dict) or not isinstance(default_agents, dict):
+        return False
+
+    changed = False
+    if "plan" not in agents:
+        if isinstance(agents.get("orchestrator"), dict):
+            agents["plan"] = json.loads(json.dumps(agents["orchestrator"]))
+            changed = True
+        elif isinstance(agents.get("general"), dict):
+            agents["plan"] = json.loads(json.dumps(agents["general"]))
+            changed = True
+    if parsed.get("default_agent") in {None, "general", "orchestrator"}:
+        if parsed.get("default_agent") != "plan":
+            parsed["default_agent"] = "plan"
+            changed = True
+    if "general" in agents:
+        del agents["general"]
+        changed = True
+    if "orchestrator" in agents:
+        del agents["orchestrator"]
+        changed = True
+
+    for agent_name, agent_defaults in default_agents.items():
+        if not isinstance(agent_defaults, dict):
+            continue
+        current = agents.get(agent_name)
+        if not isinstance(current, dict):
+            agents[agent_name] = json.loads(json.dumps(agent_defaults))
+            changed = True
+            continue
+
+        for key, value in agent_defaults.items():
+            if key not in current or current.get(key) != value:
+                current[key] = value
+                changed = True
+    return changed
+
+
+def normalize_runtime_compaction(parsed: dict[str, object], defaults: dict[str, object]) -> bool:
+    compaction = parsed.get("compaction")
+    default_compaction = defaults.get("compaction")
+    if not isinstance(compaction, dict) or not isinstance(default_compaction, dict):
+        return False
+
+    changed = False
+    for key, value in default_compaction.items():
+        if compaction.get(key) != value:
+            compaction[key] = value
+            changed = True
+    return changed
+
+
+def normalize_runtime_permissions(parsed: dict[str, object]) -> bool:
+    permission = parsed.get("permission")
+    if not isinstance(permission, dict):
+        return False
+
+    changed = False
+    required_scalars = {
+        "edit": "allow",
+        "bash": "allow",
+        "webfetch": "allow",
+        "question": "allow",
+        "skill": "allow",
+        "task": "allow",
+        "doom_loop": "allow",
+    }
+    for key, value in required_scalars.items():
+        if permission.get(key) != value:
+            permission[key] = value
+            changed = True
+
+    if permission.get("external_directory") != "allow":
+        permission["external_directory"] = "allow"
+        changed = True
+    return changed
+
+
+def normalize_runtime_tools(parsed: dict[str, object]) -> bool:
+    tools = parsed.get("tools")
+    if not isinstance(tools, dict):
+        return False
+
+    desired = runtime_tool_merge_defaults()
+    if tools == desired:
+        return False
+    parsed["tools"] = json.loads(json.dumps(desired))
+    return True
+
+
+def runtime_permission_defaults() -> dict[str, object]:
+    return {
+        "edit": "allow",
+        "bash": "allow",
+        "webfetch": "allow",
+        "doom_loop": "allow",
+        "question": "allow",
+        "skill": "allow",
+        "task": "allow",
+        "external_directory": "allow",
+    }
+
+
+def runtime_permission_merge_defaults() -> dict[str, object]:
+    return {
+        "edit": "allow",
+        "bash": "allow",
+        "webfetch": "allow",
+        "doom_loop": "allow",
+        "question": "allow",
+        "skill": "allow",
+        "task": "allow",
+        "external_directory": "allow",
+    }
+
+
+def runtime_tool_defaults() -> dict[str, object]:
+    return {
+        "*": True,
+    }
+
+
+def runtime_tool_merge_defaults() -> dict[str, object]:
+    return {
+        "*": True,
+    }
+
+
+def default_runtime_opencode_config(
+    opencode_root: str, project_root: Path | None = None
+) -> dict[str, object]:
+    return {
+        "$schema": "https://opencode.ai/config.json",
+        "formatter": False,
+        "lsp": False,
+        "instructions": runtime_instruction_paths(opencode_root, project_root),
+        "plugin": runtime_plugin_paths(opencode_root, project_root),
+        "default_agent": "plan",
+        "agent": runtime_agent_defaults(),
+        "permission": runtime_permission_defaults(),
+        "tools": runtime_tool_defaults(),
+        "mcp": {"ck": portable_ck_mcp_entry()},
+        "compaction": {
+            "auto": True,
+            "prune": True,
+            "reserved": 256000,
+        },
+        "experimental": {
+            "disable_paste_summary": True,
+            "continue_loop_on_deny": True,
+            "mcp_timeout": 45000,
+        },
+    }
+
+
+def merge_string_list(target: dict, key: str, values: list[str]) -> bool:
+    existing = target.get(key)
+    if existing is None:
+        target[key] = list(values)
+        return True
+    if not isinstance(existing, list):
+        return False
+
+    changed = False
+    for value in values:
+        if value not in existing:
+            existing.append(value)
+            changed = True
+    return changed
+
+
+def merge_dict_missing(target: dict, key: str, defaults: dict[str, object]) -> bool:
+    existing = target.get(key)
+    if existing is None:
+        target[key] = json.loads(json.dumps(defaults))
+        return True
+    if not isinstance(existing, dict):
+        return False
+
+    changed = False
+    for sub_key, value in defaults.items():
+        if sub_key not in existing:
+            existing[sub_key] = json.loads(json.dumps(value))
+            changed = True
+    return changed
+
+
+def remove_stale_instruction_globs(
+    existing: list[str], project_root: Path | None
+) -> bool:
+    stale_rules_globs = [
+        ".opencode/rules/**/*.md",
+        "ai-kb/rules/**/*.md",
+        ".cursor/rules/*.md",
+        ".cursor/rules/*.mdc",
+    ]
+    changed = False
+    for stale_rules_glob in stale_rules_globs:
+        if stale_rules_glob not in existing:
+            continue
+        if stale_rules_glob == ".opencode/rules/**/*.md" and project_root is not None:
+            rules_dir = project_root / ".opencode" / "rules"
+            if rules_dir.exists():
+                continue
+        existing[:] = [item for item in existing if item != stale_rules_glob]
+        changed = True
+    return changed
+
+
+def merge_runtime_opencode_config(
+    parsed: dict[str, object], opencode_root: str, project_root: Path | None = None
+) -> tuple[bool, list[str]]:
+    changed = False
+    notes: list[str] = []
+    defaults = default_runtime_opencode_config(opencode_root, project_root)
+    desired_plugins = defaults["plugin"]
+
+    if "formatter" not in parsed:
+        parsed["formatter"] = defaults["formatter"]
+        changed = True
+    if "lsp" not in parsed:
+        parsed["lsp"] = defaults["lsp"]
+        changed = True
+    if "compaction" not in parsed:
+        parsed["compaction"] = defaults["compaction"]
+        changed = True
+
+    instructions = parsed.get("instructions")
+    if instructions is None:
+        parsed["instructions"] = list(defaults["instructions"])
+        changed = True
+    elif isinstance(instructions, list):
+        changed = remove_stale_instruction_globs(instructions, project_root) or changed
+        changed = (
+            merge_string_list(parsed, "instructions", defaults["instructions"])
+            or changed
+        )
+    else:
+        notes.append(
+            "Skipped opencode.json instruction merge; `instructions` is not an array."
+        )
+
+    plugins = parsed.get("plugin")
+    if plugins is None:
+        parsed["plugin"] = list(desired_plugins)
+        changed = True
+    elif isinstance(plugins, list):
+        stale_suffixes = (
+            "/plugins/autonomy-runtime.js",
+            "/plugins/kb-post-turn-analyzer.js",
+        )
+        normalized_plugins = []
+        for value in plugins:
+            string_value = str(value)
+            if string_value in desired_plugins:
+                normalized_plugins.append(string_value)
+                continue
+            if any(string_value.endswith(suffix) for suffix in stale_suffixes):
+                changed = True
+                continue
+            normalized_plugins.append(string_value)
+        if normalized_plugins != plugins:
+            plugins[:] = normalized_plugins
+        changed = merge_string_list(parsed, "plugin", desired_plugins) or changed
+    else:
+        notes.append("Skipped opencode.json plugin merge; `plugin` is not an array.")
+
+    if "default_agent" not in parsed:
+        parsed["default_agent"] = defaults["default_agent"]
+        changed = True
+
+    if merge_dict_missing(parsed, "agent", defaults["agent"]):
+        changed = True
+    if parsed.get("agent") is not None and not isinstance(parsed.get("agent"), dict):
+        notes.append("Skipped opencode.json agent merge; `agent` is not an object.")
+    elif isinstance(parsed.get("agent"), dict):
+        changed = normalize_runtime_agents(parsed, defaults) or changed
+
+    if merge_dict_missing(parsed, "permission", runtime_permission_merge_defaults()):
+        changed = True
+    if parsed.get("permission") is not None and not isinstance(
+        parsed.get("permission"), dict
+    ):
+        notes.append(
+            "Skipped opencode.json permission merge; `permission` is not an object."
+        )
+    elif isinstance(parsed.get("permission"), dict):
+        changed = normalize_runtime_permissions(parsed) or changed
+
+    tools = parsed.get("tools")
+    if tools is None:
+        parsed["tools"] = json.loads(json.dumps(runtime_tool_merge_defaults()))
+        changed = True
+    elif isinstance(tools, dict):
+        for tool_name, enabled in runtime_tool_merge_defaults().items():
+            if tool_name not in tools:
+                tools[tool_name] = enabled
+                changed = True
+        changed = normalize_runtime_tools(parsed) or changed
+    else:
+        notes.append("Skipped opencode.json tools merge; `tools` is not an object.")
+
+    if merge_dict_missing(parsed, "compaction", defaults["compaction"]):
+        changed = True
+    elif parsed.get("compaction") is not None and not isinstance(
+        parsed.get("compaction"), dict
+    ):
+        notes.append("Skipped opencode.json compaction merge; `compaction` is not an object.")
+    else:
+        changed = normalize_runtime_compaction(parsed, defaults) or changed
+
+    if merge_dict_missing(parsed, "mcp", defaults["mcp"]):
+        changed = True
+    elif parsed.get("mcp") is not None and not isinstance(parsed.get("mcp"), dict):
+        notes.append("Skipped opencode.json MCP merge; `mcp` is not an object.")
+    else:
+        mcp = parsed.get("mcp")
+        if isinstance(mcp, dict):
+            desired_ck = portable_ck_mcp_entry()
+            if mcp.get("ck") != desired_ck:
+                mcp["ck"] = desired_ck
+                changed = True
+
+    if merge_dict_missing(parsed, "experimental", defaults["experimental"]):
+        changed = True
+    elif parsed.get("experimental") is not None and not isinstance(
+        parsed.get("experimental"), dict
+    ):
+        notes.append(
+            "Skipped opencode.json experimental merge; `experimental` is not an object."
+        )
+
+    return changed, notes
+
+
 def merge_opencode_json_file(
     src: Path,
     dst: Path,
@@ -635,12 +1208,9 @@ def merge_opencode_json_file(
     replacements: list[tuple[str, str]],
     exts: set[str],
     basenames: set[str],
+    project_mode: bool,
 ) -> None:
-    """Merge OpenCode `opencode.json` by adding missing instructions and MCP servers.
-
-    This avoids clobbering user settings while ensuring the KB entry points and the
-    `ck` MCP server are present.
-    """
+    """Merge OpenCode `opencode.json` with missing autonomy-runtime defaults."""
     try:
         src_text = apply_replacements(src.read_text(encoding="utf-8"), replacements)
         src_data = json.loads(src_text)
@@ -654,8 +1224,6 @@ def merge_opencode_json_file(
     if not isinstance(src_data, dict):
         copy_file(src, dst, args, state, stamp, replacements, exts, basenames)
         return
-    # Do not propagate OpenCode tool permission policies from bundle payload.
-    src_data = {k: v for k, v in src_data.items() if k not in {"permission", "permissions"}}
 
     if not dst.exists():
         write_json_file_with_backup(
@@ -681,48 +1249,13 @@ def merge_opencode_json_file(
         copy_file(src, dst, args, state, stamp, replacements, exts, basenames)
         return
 
-    changed = False
-
-    # Merge instructions (append missing; never remove).
-    src_instructions = src_data.get("instructions")
-    dst_instructions = dst_data.get("instructions")
-    if isinstance(src_instructions, list):
-        if dst_instructions is None:
-            dst_data["instructions"] = list(src_instructions)
-            changed = True
-        elif isinstance(dst_instructions, list):
-            for item in src_instructions:
-                if item not in dst_instructions:
-                    dst_instructions.append(item)
-                    changed = True
-
-    # Ensure ck MCP server exists (do not overwrite user config if already present).
-    dst_mcp = dst_data.get("mcp")
-    if dst_mcp is None:
-        dst_data["mcp"] = {}
-        dst_mcp = dst_data["mcp"]
-        changed = True
-    if isinstance(dst_mcp, dict):
-        if "ck" not in dst_mcp:
-            src_mcp = src_data.get("mcp")
-            ck_entry = None
-            if isinstance(src_mcp, dict):
-                ck_entry = src_mcp.get("ck")
-            if not isinstance(ck_entry, dict):
-                ck_entry = {
-                    "type": "local",
-                    "command": [
-                        "bash",
-                        "-lc",
-                        'dir="$PWD"; while [ -n "$dir" ] && [ "$dir" != "/" ]; do if [ -d "$dir/ai-kb" ]; then cd "$dir/ai-kb" 2>/dev/null && exec ck --serve; fi; next="$(dirname "$dir")"; [ "$next" = "$dir" ] && break; dir="$next"; done; cd "$HOME/ai-kb" 2>/dev/null && exec ck --serve; echo "ck MCP: unable to locate ai-kb" >&2; exit 1',
-                    ],
-                    "enabled": True,
-                    "timeout": 15000,
-                }
-            dst_mcp["ck"] = ck_entry
-            changed = True
-    else:
-        state.notes.append("Skipped opencode.json MCP merge; `mcp` is not an object.")
+    opencode_root = ".opencode" if project_mode else "~/.config/opencode"
+    changed, notes = merge_runtime_opencode_config(
+        dst_data,
+        opencode_root=opencode_root,
+        project_root=dst.parent if project_mode else None,
+    )
+    state.notes.extend(notes)
 
     if not changed:
         return
@@ -755,34 +1288,16 @@ def ensure_hook_executable_bits(cursor_hooks_root: Path, dry_run: bool) -> None:
 
 
 def default_project_opencode_instructions(project_root: Path) -> list[str]:
-    instructions = [
-        "ai-kb/AGENTS.md",
-        "ai-kb/rules/INDEX.md",
-        "ai-kb/commands/INDEX.md",
-    ]
-    if (project_root / "AGENTS.md").exists():
-        instructions.insert(0, "AGENTS.md")
-    return instructions
+    return runtime_instruction_paths(".opencode", project_root)
 
 
-def default_project_opencode_config(required_instructions: list[str]) -> dict[str, object]:
-    ck_mcp = {
-        "ck": {
-            "type": "local",
-            "command": [
-                "bash",
-                "-lc",
-                'dir="$PWD"; while [ -n "$dir" ] && [ "$dir" != "/" ]; do if [ -d "$dir/ai-kb" ]; then cd "$dir/ai-kb" 2>/dev/null && exec ck --serve; fi; next="$(dirname "$dir")"; [ "$next" = "$dir" ] && break; dir="$next"; done; cd "$HOME/ai-kb" 2>/dev/null && exec ck --serve; echo "ck MCP: unable to locate ai-kb" >&2; exit 1',
-            ],
-            "enabled": True,
-            "timeout": 15000,
-        }
-    }
-    return {
-        "$schema": "https://opencode.ai/config.json",
-        "instructions": list(required_instructions),
-        "mcp": ck_mcp,
-    }
+def default_project_opencode_config(
+    project_root: Path,
+    required_instructions: list[str],
+) -> dict[str, object]:
+    config = default_runtime_opencode_config(".opencode", project_root)
+    config["instructions"] = list(required_instructions)
+    return config
 
 
 def ensure_project_opencode_json(
@@ -802,10 +1317,12 @@ def ensure_project_opencode_json(
                 "instruction merge runs after real file copy."
             )
             return
-        generated = default_project_opencode_config(required_instructions)
+        generated = default_project_opencode_config(project_root, required_instructions)
         print(f"Create project opencode.json: {config_path}")
         if not args.dry_run:
-            config_path.write_text(json.dumps(generated, indent=2) + "\n", encoding="utf-8")
+            config_path.write_text(
+                json.dumps(generated, indent=2) + "\n", encoding="utf-8"
+            )
         state.created_files += 1
         state.created_paths.add(config_path)
         return
@@ -820,7 +1337,9 @@ def ensure_project_opencode_json(
             )
             return
 
-        replacement = default_project_opencode_config(required_instructions)
+        replacement = default_project_opencode_config(
+            project_root, required_instructions
+        )
         state.notes.append(
             "Existing opencode.json was not strict JSON; backed it up and replaced "
             "with a project-compatible config."
@@ -842,7 +1361,9 @@ def ensure_project_opencode_json(
             )
             return
 
-        replacement = default_project_opencode_config(required_instructions)
+        replacement = default_project_opencode_config(
+            project_root, required_instructions
+        )
         state.notes.append(
             "Existing opencode.json root was not an object; backed it up and replaced "
             "with a project-compatible config."
@@ -856,68 +1377,19 @@ def ensure_project_opencode_json(
         )
         return
 
-    existing = parsed.get("instructions")
-    changed = False
-    if existing is None:
-        parsed["instructions"] = list(required_instructions)
-        changed = True
-    elif isinstance(existing, list):
-        # Older bundle versions preloaded rules via broad globs. We now keep rules under
-        # `ai-kb/rules/**` but rely on `ai-kb/rules/INDEX.md` for discovery (RAG-first),
-        # so we clean up known stale/preload globs where safe.
-        stale_rules_globs = [
-            ".opencode/rules/**/*.md",
-            # Preloading every rule defeats the KB "load relevant rules" workflow.
-            # Keep only the indexes and let the agent read the relevant Level 1/2 docs.
-            "ai-kb/rules/**/*.md",
-            ".cursor/rules/*.md",
-            ".cursor/rules/*.mdc",
-        ]
-        for stale_rules_glob in stale_rules_globs:
-            if stale_rules_glob not in existing:
-                continue
-            # Only auto-remove the old glob if it looks like a previous bundle artifact.
-            # For `.opencode/rules/**`, we also require the directory to be absent.
-            if stale_rules_glob == ".opencode/rules/**/*.md":
-                rules_dir = project_root / ".opencode" / "rules"
-                if rules_dir.exists():
-                    continue
-            existing[:] = [item for item in existing if item != stale_rules_glob]
-            changed = True
-        for item in required_instructions:
-            if item not in existing:
-                existing.append(item)
-                changed = True
-    else:
-        state.notes.append("Skipped opencode.json merge; `instructions` is not an array.")
-        return
-
-    # Ensure ck MCP server exists (KB retrieval). Do not overwrite if user already configured it.
-    mcp = parsed.get("mcp")
-    if mcp is None:
-        parsed["mcp"] = {}
-        mcp = parsed["mcp"]
-        changed = True
-    if isinstance(mcp, dict):
-        if "ck" not in mcp:
-            mcp["ck"] = {
-                "type": "local",
-                "command": [
-                    "bash",
-                    "-lc",
-                    'dir="$PWD"; while [ -n "$dir" ] && [ "$dir" != "/" ]; do if [ -d "$dir/ai-kb" ]; then cd "$dir/ai-kb" 2>/dev/null && exec ck --serve; fi; next="$(dirname "$dir")"; [ "$next" = "$dir" ] && break; dir="$next"; done; cd "$HOME/ai-kb" 2>/dev/null && exec ck --serve; echo "ck MCP: unable to locate ai-kb" >&2; exit 1',
-                ],
-                "enabled": True,
-                "timeout": 15000,
-            }
-            changed = True
-    else:
-        state.notes.append("Skipped opencode.json MCP merge; `mcp` is not an object.")
+    changed, notes = merge_runtime_opencode_config(
+        parsed,
+        opencode_root=".opencode",
+        project_root=project_root,
+    )
+    state.notes.extend(notes)
 
     if not changed:
         return
     if args.preserve_existing:
-        state.notes.append("Skipped opencode.json merge because preserve-existing is set.")
+        state.notes.append(
+            "Skipped opencode.json merge because preserve-existing is set."
+        )
         return
 
     print(f"Merge instructions into: {config_path}")
@@ -934,6 +1406,10 @@ def global_copy_plan(copied_items: list[str]) -> list[tuple[str, str]]:
     plan: list[tuple[str, str]] = []
     for rel in copied_items:
         if rel == ".cursor/cli-config.json":
+            continue
+        if rel == "ai-kb":
+            plan.append((rel, rel))
+            plan.append((rel, ".config/opencode/ai-kb"))
             continue
         dst = rel
         if rel == ".config/opencode/agent":
@@ -953,14 +1429,20 @@ def project_copy_plan(include_machine_config: bool) -> list[tuple[str, str]]:
         (".cursor/mcp.json", ".cursor/mcp.json"),
         (".cursor/hooks.json", ".cursor/hooks.json"),
         (".config/opencode/AGENTS.md", ".opencode/AGENTS.md"),
+        (".config/opencode/prime-directive.md", ".opencode/prime-directive.md"),
         (".config/opencode/agent", ".opencode/agents"),
         (".config/opencode/command", ".opencode/commands"),
+        (".config/opencode/skills", ".opencode/skills"),
         (".config/opencode/plugins", ".opencode/plugins"),
+        (".config/opencode/runtime", ".opencode/runtime"),
+        (".config/opencode/overlays", ".opencode/overlays"),
+        (".config/opencode/scripts", ".opencode/scripts"),
+        (".config/opencode/memory/global", ".opencode/memory/global"),
+        (".config/opencode/memory/templates/project/.opencode", ".opencode"),
     ]
     if include_machine_config:
         plan.extend(
             [
-                (".config/opencode/opencode.json", "opencode.json"),
                 (".config/opencode/dcp.jsonc", ".opencode/dcp.jsonc"),
             ]
         )
@@ -1005,6 +1487,7 @@ def collect_uninstall_targets(
     # Project installs always ensure/merge repo-root opencode.json.
     if project_mode:
         file_targets.add(destination_root / "opencode.json")
+        file_targets.add(destination_root / ".gitignore")
         dir_targets.add(destination_root)
 
     return sorted(file_targets), dir_targets
@@ -1076,7 +1559,9 @@ def remove_path(path: Path, dry_run: bool, state: UninstallState) -> None:
         path.unlink()
 
 
-def restore_backup(target: Path, backup: Path, dry_run: bool, state: UninstallState) -> None:
+def restore_backup(
+    target: Path, backup: Path, dry_run: bool, state: UninstallState
+) -> None:
     print(f"Restore backup: {backup} -> {target}")
     state.restored_backups.append((target, backup))
     if dry_run:
@@ -1179,7 +1664,9 @@ def uninstall_all_roots(
     state: UninstallState,
     project_mode: bool,
 ) -> None:
-    roots = managed_root_targets(destination_root=destination_root, project_mode=project_mode)
+    roots = managed_root_targets(
+        destination_root=destination_root, project_mode=project_mode
+    )
     state.notes.append(
         "Force cleanup enabled: managed roots are removed recursively when no backup exists."
     )
@@ -1265,7 +1752,9 @@ def migrate_opencode_compat_dirs(
                     continue
 
                 conflict_path = dst_path.with_name(f"{dst_path.name}.compat.{stamp}")
-                print(f"Preserve OpenCode compat conflict: {src_path} -> {conflict_path}")
+                print(
+                    f"Preserve OpenCode compat conflict: {src_path} -> {conflict_path}"
+                )
                 if args.dry_run:
                     continue
                 conflict_path.parent.mkdir(parents=True, exist_ok=True)
@@ -1284,7 +1773,9 @@ def migrate_opencode_compat_dirs(
             try:
                 shutil.move(str(src_path), str(dst_path))
             except Exception as exc:
-                state.notes.append(f"Could not move OpenCode compat file {src_path}: {exc}")
+                state.notes.append(
+                    f"Could not move OpenCode compat file {src_path}: {exc}"
+                )
 
         if args.dry_run:
             print(f"Prune empty OpenCode compat dir: {singular_dir}")
@@ -1300,12 +1791,19 @@ def migrate_opencode_compat_dirs(
             singular_dir.rmdir()
             print(f"Removed OpenCode compat dir: {singular_dir}")
         except Exception:
-            state.notes.append(f"OpenCode compat dir not empty; left in place: {singular_dir}")
+            state.notes.append(
+                f"OpenCode compat dir not empty; left in place: {singular_dir}"
+            )
 
 
 def global_replacements(source_home: str, target_home: str) -> list[tuple[str, str]]:
+    opencode_kb = f"{target_home}/.config/opencode/ai-kb"
     return [
-        ("__HOME__/ai-kb", f"{target_home}/ai-kb"),
+        ("__HOME__/ai-kb", opencode_kb),
+        (f"{source_home}/ai-kb", opencode_kb),
+        ("~/.config/opencode", f"{target_home}/.config/opencode"),
+        ("~/.cursor", f"{target_home}/.cursor"),
+        ("~/ai-kb", opencode_kb),
         ("__HOME__", target_home),
         (source_home, target_home),
     ]
@@ -1322,6 +1820,8 @@ def project_replacements(
     return [
         ("__HOME__/ai-kb", project_kb),
         ("__HOME__", str(current_home)),
+        (f"{source_home}/.config/opencode/ai-kb", project_kb),
+        ("~/.config/opencode/ai-kb", project_kb),
         (f"{source_home}/ai-kb", project_kb),
         ("~/ai-kb", project_kb),
         (f"{source_home}/.config/opencode", project_opencode),
@@ -1352,7 +1852,9 @@ def install_entries(
                 state.missing_sources.append(src)
                 print(f"Missing source: {src}")
                 continue
-            merge_cursor_mcp_file(src, dst, args, state, stamp, replacements, exts, basenames)
+            merge_cursor_mcp_file(
+                src, dst, args, state, stamp, replacements, exts, basenames
+            )
             continue
         if project_mode and src_rel == ".cursor/hooks.json":
             if not src.exists():
@@ -1368,7 +1870,31 @@ def install_entries(
                 state.missing_sources.append(src)
                 print(f"Missing source: {src}")
                 continue
-            merge_opencode_json_file(src, dst, args, state, stamp, replacements, exts, basenames)
+            merge_opencode_json_file(
+                src,
+                dst,
+                args,
+                state,
+                stamp,
+                replacements,
+                exts,
+                basenames,
+                project_mode,
+            )
+            continue
+        if (
+            project_mode
+            and src_rel == ".config/opencode/memory/templates/project/.opencode"
+        ):
+            scaffold_project_runtime_state(
+                payload,
+                destination_root,
+                args,
+                state,
+                replacements,
+                exts,
+                basenames,
+            )
             continue
         copy_entry(src, dst, args, state, stamp, replacements, exts, basenames)
 
@@ -1452,7 +1978,10 @@ def main() -> int:
         print("Note: --project-full is ignored with --uninstall.", file=sys.stderr)
 
     if args.uninstall and args.include_machine_config:
-        print("Note: --include-machine-config is ignored with --uninstall.", file=sys.stderr)
+        print(
+            "Note: --include-machine-config is ignored with --uninstall.",
+            file=sys.stderr,
+        )
 
     if args.project_full and not args.uninstall:
         args.include_machine_config = True
@@ -1481,8 +2010,12 @@ def main() -> int:
     if not args.uninstall:
         required_tools = ["python3", "node", "git"]
         optional_tools = ["bun", "uv", "ck"]
-        missing_required = [tool for tool in required_tools if shutil.which(tool) is None]
-        missing_optional = [tool for tool in optional_tools if shutil.which(tool) is None]
+        missing_required = [
+            tool for tool in required_tools if shutil.which(tool) is None
+        ]
+        missing_optional = [
+            tool for tool in optional_tools if shutil.which(tool) is None
+        ]
 
         if args.install_deps:
             install_missing_deps(missing_required + missing_optional)
@@ -1579,7 +2112,9 @@ def main() -> int:
         print_uninstall_summary(uninstall_state, mode, target_home, args.dry_run)
         return 0
 
-    home_rewrite_rules = dedupe_replacements(global_replacements(source_home, str(target_home)))
+    home_rewrite_rules = dedupe_replacements(
+        global_replacements(source_home, str(target_home))
+    )
     install_entries(
         payload=payload,
         destination_root=target_home,

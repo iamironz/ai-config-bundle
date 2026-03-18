@@ -1,0 +1,49 @@
+{
+  // Autonomy-first runtime manifest for the hidden runtime plugin.
+  "memory": {
+    "globalFiles": [
+      ".opencode/memory/global/current.md",
+      ".opencode/memory/global/preferences.md"
+    ],
+    "projectFiles": [
+      ".opencode/memory/current.md",
+      ".opencode/memory/decisions.md",
+      ".opencode/memory/handoff.md"
+    ],
+    "projectRoot": ".opencode/memory",
+    "maxChars": 64000
+  },
+  "overlays": {
+    "catalogDir": ".opencode/overlays",
+    "projectControlFiles": [
+      ".opencode/overlays.jsonc"
+    ],
+    "projectControlDefaultMode": "exact"
+  },
+  "routing": {
+    "defaultMode": "autonomy-first",
+    "supervisorWhen": [
+      "material branching ambiguity",
+      "destructive or security-sensitive action",
+      "repeated failure recovery"
+    ],
+    "questionEscalation": "single targeted question only when repo context cannot safely disambiguate"
+  },
+  "checkpoints": {
+    "stateDir": ".opencode/state",
+    "projectStateFile": ".opencode/checkpoints/latest.json",
+    "gates": ["tests", "build", "docs"]
+  },
+  "sessionState": {
+    "maxEntries": 5000,
+    "ttlMs": 604800000
+  },
+  "traces": {
+    "dir": ".opencode/traces",
+    "previewChars": 4000
+  },
+  "evals": {
+    "dir": ".opencode/evals",
+    "defaultReport": "latest-report.md"
+  }
+}

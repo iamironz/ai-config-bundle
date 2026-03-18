@@ -12,6 +12,13 @@ Use this rule to keep the knowledge base updated from real implementation learni
 > `.cursor/kb-recommendations/`, `.opencode/kb-recommendations/`). The analyzers check for
 > project-local directories first and fall back to global paths when absent.
 
+## Analyzer Safety
+
+- Recommendation-generating plugins must follow `plugin-safety.md`.
+- Use coarse triggers, internal-session markers, dedupe, cooldown, and concurrency guards before creating internal analyzer sessions.
+- Emit proposal artifacts only; do not auto-edit `~/ai-kb/` from an analyzer session.
+- Fail open on analyzer errors and clear internal-session tracking in cleanup paths.
+
 ## Maintenance Workflow
 
 1. Review new recommendation files and validate relevance.
@@ -25,4 +32,5 @@ Use this rule to keep the knowledge base updated from real implementation learni
 
 - Do not apply recommendations blindly; treat them as proposals.
 - Reject duplicate or contradictory guidance.
+- Keep recommendation writers proposal-only; analyzers may queue artifacts but must not mutate the canonical KB directly.
 - Ensure new guidance does not conflict with `architecture.md`, `error-handling.md`, `security.md`, and `tdd.md`.

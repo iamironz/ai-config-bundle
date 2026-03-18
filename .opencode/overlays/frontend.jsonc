@@ -1,0 +1,12 @@
+{
+  "id": "frontend",
+  "description": "Prefer browser and recent-web research tooling for web apps and UI-heavy repositories.",
+  "match": {
+    "any": ["public", "pages", "vite.config.ts", "vite.config.js", "next.config.js", "next.config.mjs", "next.config.ts"]
+  },
+  "prioritizeMcp": ["playwright", "puppeteer", "perplexity", "open-websearch"],
+  "instructions": [
+    "Use browser automation and screenshots for UI verification when feasible.",
+    "Preserve existing visual language instead of introducing generic redesigns."
+  ]
+}

@@ -3,18 +3,7 @@ description: codebase-pattern-finder is a useful subagent_type for finding simil
 mode: subagent
 # model: inherit - by omitting model, this subagent inherits the parent session model
 temperature: 0.1
-tools:
-  read: true
-  grep: true
-  glob: true
-  list: true
-  bash: false
-  edit: false
-  write: false
-  patch: false
-  todoread: false
-  todowrite: false
-  webfetch: false
+
 ---
 
 You are a specialist at finding code patterns and examples in the codebase. Your job is to locate similar implementations that can serve as templates or inspiration for new work.

@@ -5,11 +5,55 @@ import { join } from "node:path"
 const MAX_HISTORY_CHARS = Number(process.env.AI_KB_MAX_HISTORY_CHARS || 120000)
 const MIN_HISTORY_CHARS = Number(process.env.AI_KB_MIN_HISTORY_CHARS || 800)
 const SCAN_LIMIT = Number(process.env.AI_KB_RECOMMENDATION_SCAN_LIMIT || 300)
+const MAX_INLINE_SUGGESTED_CONTENT_CHARS = Number(
+  process.env.AI_KB_MAX_INLINE_SUGGESTED_CONTENT_CHARS || 2000,
+)
 const HOME_KB_PREFIX = "~" + "/ai-kb/"
+
+// --- Cascade prevention: circuit breaker, rate limiter, concurrency guard ---
+const CIRCUIT_BREAKER_WINDOW_MS = 60_000
+const CIRCUIT_BREAKER_MAX_SESSIONS = 5
+const ANALYSIS_COOLDOWN_MS = 10_000
+const MAX_CONCURRENT_INTERNAL_SESSIONS = 1
+const INTERNAL_SESSION_TITLE = "[internal] kb-post-turn-analyzer"
 
 const activeSessionAnalyses = new Set()
 const internalSessionIds = new Set()
+// Share internal session IDs across plugins via globalThis so autonomy-runtime
+// can suppress subagent delegation for internal analyzer sessions.
+globalThis.__kb_internal_session_ids = internalSessionIds
 let analyzerBusy = false
+let lastAnalysisTimestamp = 0
+const sessionCreationTimestamps = []
+let circuitBreakerTripped = false
+
+function isCircuitBreakerOpen() {
+  if (circuitBreakerTripped) {
+    return true
+  }
+  const now = Date.now()
+  // Prune old timestamps outside the window
+  while (sessionCreationTimestamps.length > 0 && now - sessionCreationTimestamps[0] > CIRCUIT_BREAKER_WINDOW_MS) {
+    sessionCreationTimestamps.shift()
+  }
+  if (sessionCreationTimestamps.length >= CIRCUIT_BREAKER_MAX_SESSIONS) {
+    circuitBreakerTripped = true
+    return true
+  }
+  return false
+}
+
+function recordSessionCreation() {
+  sessionCreationTimestamps.push(Date.now())
+}
+
+function isCooldownActive() {
+  return Date.now() - lastAnalysisTimestamp < ANALYSIS_COOLDOWN_MS
+}
+
+function canCreateInternalSession() {
+  return internalSessionIds.size < MAX_CONCURRENT_INTERNAL_SESSIONS
+}
 
 function slug(value, fallback) {
   const normalized = String(value || "")
@@ -214,9 +258,18 @@ function buildSchema() {
 }
 
 async function runStructuredAnalysis(client, historyText) {
+  // Guard: circuit breaker, concurrency cap, cooldown
+  if (isCircuitBreakerOpen()) {
+    return null
+  }
+  if (!canCreateInternalSession()) {
+    return null
+  }
+
+  recordSessionCreation()
   const created = await client.session.create({
     body: {
-      title: "[internal] kb-post-turn-analyzer",
+      title: INTERNAL_SESSION_TITLE,
     },
   })
   const createdSession = created?.data ?? created
@@ -459,13 +512,16 @@ function buildMarkdown({ timestamp, sessionId, generationId, historyChars, analy
     const targetPath = String(recommendation.target_path || "").trim()
     const reason = String(recommendation.reason || "").trim()
     const suggested = String(recommendation.suggested_content || "").trim()
+    const externalizedSuggestedPath = String(recommendation.externalized_suggested_content_path || "").trim()
     const linked = Array.isArray(recommendation.link_commands) ? recommendation.link_commands : []
 
     lines.push(`- **${action}** \`${targetPath}\``)
     if (reason) {
       lines.push(`  - Reason: ${reason}`)
     }
-    if (suggested) {
+    if (externalizedSuggestedPath) {
+      lines.push(`  - Suggested content: externalized to \`${externalizedSuggestedPath}\` (full content preserved)`)
+    } else if (suggested) {
       lines.push(`  - Suggested content: ${suggested}`)
     }
     if (linked.length > 0) {
@@ -503,8 +559,66 @@ function buildMarkdown({ timestamp, sessionId, generationId, historyChars, analy
   return `${lines.join("\n")}\n`
 }
 
+function shouldExternalizeSuggestedContent(suggestedContent) {
+  if (!suggestedContent.trim()) {
+    return false
+  }
+  if (suggestedContent.length > MAX_INLINE_SUGGESTED_CONTENT_CHARS) {
+    return true
+  }
+  if (suggestedContent.includes("\n")) {
+    return true
+  }
+  return suggestedContent.includes("```")
+}
+
+function externalizeSuggestedContent({ analysis, stamp, sessionId, generationId }) {
+  const recommendations = Array.isArray(analysis?.recommendations) ? analysis.recommendations : []
+  const blobFiles = []
+  const rewrittenRecommendations = []
+
+  for (const recommendation of recommendations) {
+    if (!recommendation || typeof recommendation !== "object") {
+      continue
+    }
+
+    const suggestedContent =
+      typeof recommendation.suggested_content === "string"
+        ? recommendation.suggested_content
+        : String(recommendation.suggested_content || "")
+
+    if (!shouldExternalizeSuggestedContent(suggestedContent)) {
+      rewrittenRecommendations.push(recommendation)
+      continue
+    }
+
+    const blobIndex = blobFiles.length + 1
+    const blobName = `blob-${stamp}-${sessionId}-${generationId}-r${String(blobIndex).padStart(2, "0")}.md`
+    blobFiles.push({ fileName: blobName, content: suggestedContent })
+    rewrittenRecommendations.push({
+      ...recommendation,
+      suggested_content: "",
+      externalized_suggested_content_path: blobName,
+    })
+  }
+
+  return {
+    analysis: {
+      ...analysis,
+      recommendations: rewrittenRecommendations,
+    },
+    blobFiles,
+  }
+}
+
 async function analyzeCompactionWindow({ directory, client, input, output }) {
   if (analyzerBusy) {
+    return
+  }
+  if (isCircuitBreakerOpen()) {
+    return
+  }
+  if (isCooldownActive()) {
     return
   }
 
@@ -521,7 +635,14 @@ async function analyzeCompactionWindow({ directory, client, input, output }) {
     return
   }
 
-  const rawHistory = normalizeHistory(collectStrings(payload).join("\n"))
+  // Detect if the compacting session is itself an internal analyzer session
+  // by checking if the history contains the internal session title marker.
+  const rawText = collectStrings(payload).join("\n")
+  if (rawText.includes(INTERNAL_SESSION_TITLE)) {
+    return
+  }
+
+  const rawHistory = normalizeHistory(rawText)
   if (rawHistory.length < MIN_HISTORY_CHARS) {
     return
   }
@@ -532,6 +653,7 @@ async function analyzeCompactionWindow({ directory, client, input, output }) {
 
   activeSessionAnalyses.add(rawSessionId)
   analyzerBusy = true
+  lastAnalysisTimestamp = Date.now()
   try {
     const analysis = await runStructuredAnalysis(client, windowText)
     if (!analysis || !analysis.should_recommend || !Array.isArray(analysis.recommendations)) {
@@ -555,15 +677,24 @@ async function analyzeCompactionWindow({ directory, client, input, output }) {
     const rawGenerationId = findIdByKeyPattern(payload, /generation[_\-.]?id/i) || "generation"
     const generationId = slug(rawGenerationId, "generation")
     const outFile = join(outDir, `${stamp}-${sessionId}-${generationId}.md`)
+    const externalized = externalizeSuggestedContent({
+      analysis: filtered,
+      stamp,
+      sessionId,
+      generationId,
+    })
     const body = buildMarkdown({
       timestamp: iso,
       sessionId,
       generationId,
       historyChars: windowText.length,
-      analysis: filtered,
+      analysis: externalized.analysis,
     })
 
     await mkdir(outDir, { recursive: true })
+    for (const blobFile of externalized.blobFiles) {
+      await writeFile(join(outDir, blobFile.fileName), blobFile.content, "utf8")
+    }
     await writeFile(outFile, body, "utf8")
   } catch (_error) {
     // Fail-open: analysis issues should never impact the interactive workflow.

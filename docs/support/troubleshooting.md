@@ -14,23 +14,19 @@ node --version
 git --version
 ```
 
-1. (Optional) Verify `ck` is installed (only needed for ck MCP / semantic KB search):
+2. Verify `ck` when you want semantic KB search:
 
 ```bash
 ck --version
 ```
 
-1. Run the installer in dry-run mode:
+3. Run the installer in dry-run mode:
 
 ```bash
 ./install.sh --dry-run
 ```
 
 ## Common issues
-
-### Missing required tools
-
-If you see `Warning: missing required tools: ...`, install the missing tools and retry.
 
 ### ck MCP server not working
 
@@ -40,44 +36,25 @@ If your AI client shows MCP errors for server `ck`:
 2. Ensure the MCP config exists:
    - Cursor: `~/.cursor/mcp.json` or `<repo>/.cursor/mcp.json`
    - OpenCode: `~/.config/opencode/opencode.json` or `<repo>/opencode.json`
-3. Restart the client so it reloads MCP servers.
+3. The OpenCode/Cursor `ck` launcher searches, in order:
+   - repo-local `ai-kb/`
+   - mirrored `~/.config/opencode/ai-kb/`
+   - `~/ai-kb/`
+4. Restart the client and start a fresh session so it reloads MCP servers and runtime config.
 
-### Cursor post-turn analyzer hook not running
+### OpenCode still shows old prompts or behavior
 
-The hook in `.cursor/hooks.json` uses a relative path (`./hooks/kb-post-turn-analyzer.py`).
-Cursor resolves this relative to the `.cursor/` directory. If the hook does not fire:
+If OpenCode still mentions old agent names, old prompt text, or stale runtime behavior:
 
-1. Verify `.cursor/hooks.json` exists and contains a `preCompact` entry.
-2. Verify `.cursor/hooks/kb-post-turn-analyzer.py` exists and is executable (`chmod +x`).
-3. Restart Cursor to reload hooks configuration.
-4. Check Cursor output panel for hook execution errors.
+1. Reinstall for that target again.
+2. Start a fresh session in the repo; existing sessions keep old injected context.
+3. Check the local project config (`<repo>/opencode.json`) and the local runtime files under `<repo>/.opencode/`.
 
 ### Unexpected overwrites or backups
 
 - Use `--dry-run` to preview changes.
 - Use `--preserve-existing` to avoid overwriting conflicting destination files.
 - Use `--uninstall` to roll back managed files (restores `.bak.<stamp>` backups first when available).
-
-### Uninstall command errors on incompatible flags
-
-`--uninstall` cannot be combined with `--install-deps` or `--preserve-existing`.
-`--uninstall-all` requires `--uninstall`.
-
-Use one of:
-
-```bash
-./install.sh --project-dir /path/to/project --uninstall --dry-run
-./install.sh --target-home /path/to/home --uninstall --dry-run
-./install.sh --project-dir /path/to/project --uninstall --uninstall-all --dry-run
-```
-
-### Force cleanup removed custom files
-
-`--uninstall-all` removes full managed roots recursively. Any user files added
-inside those roots are removed unless a matching root backup is restored.
-
-If you only want to roll back installer-managed files, use `--uninstall` without
-`--uninstall-all`.
 
 ### Project mode fails with "Project directory does not exist"
 

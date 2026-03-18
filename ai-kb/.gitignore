@@ -1,0 +1,11 @@
+# ck index/cache (never commit)
+.ck/
+.ck_models/
+
+# Bundle installer backups (local safety copies)
+*.bak
+*.bak.*
+*.compat.*
+
+# macOS noise
+.DS_Store

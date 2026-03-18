@@ -1,25 +1,84 @@
 {
   "$schema": "https://opencode.ai/config.json",
+  "formatter": false,
   "lsp": false,
-  "theme": "light",
   "instructions": [
-    "~/ai-kb/AGENTS.md",
-    "~/ai-kb/rules/INDEX.md",
-    "~/ai-kb/commands/INDEX.md"
+    "~/.config/opencode/AGENTS.md",
+    "~/.config/opencode/prime-directive.md",
+    "~/.config/opencode/runtime/bootstrap.md"
   ],
+  "plugin": [
+    "~/.config/opencode/plugins/autonomy-runtime.js",
+    "~/.config/opencode/plugins/kb-post-turn-analyzer.js"
+  ],
+  "default_agent": "plan",
+  "agent": {
+    "build": {
+      "description": "Primary shared-state lane. Orchestrates mutable work by delegating discovery and analysis first, then applying edits, validations, and handoffs with minimal root-lane work.",
+      "steps": 1000,
+      "mode": "primary",
+      "prompt": "Stay orchestration-first even in the build lane. For every task, offload discovery, analysis, review, and research to background or parallel specialist `task` lanes before doing mutable work yourself. Use this lane for shared-state edits, builds, tests, migrations, and other mutations only after delegated evidence narrows the work. Keep your own direct work minimal: merge subagent outputs, apply the smallest required shared-state change, validate it, then redelegate unresolved work instead of asking the user to continue. When project-local runtime state exists, `.opencode/` is canonical. Before answering any question about runtime state paths, read `.opencode/README.md` or `.opencode/overlays.jsonc` if present. Never substitute `.Claude/` unless the runtime context or repo files explicitly say `.Claude/`."
+    },
+    "plan": {
+      "description": "Primary orchestration and decomposition lane. Routes intent, dispatches specialists, merges findings, and keeps deep implementation out of the root lane.",
+      "steps": 1000,
+      "mode": "primary",
+      "prompt": "Stay orchestration-first. For every task, first load `command-parity-router`, then offload implementation, analysis, research, review, and exploration to background or parallel specialist `task` lanes before doing main-thread work. The plan lane acts as the team lead: route intent, dispatch subagents, merge the minimum needed, handle shared-state transitions only when necessary, and redelegate unresolved work until the task is complete. Use `codebase-locator` or `thoughts-locator` for locating scope, `codebase-analyzer` or `thoughts-analyzer` for analysis/spec work, `code-reviewer` or `spec-reviewer` for review, `codebase-pattern-finder` for similar implementations, `web-search-researcher` for external evidence, and `evidence-curator` to merge lane outputs. Keep `build` for shared-state edits and validations after delegated discovery narrows the work. Do not stop to ask the user to continue when the next step is clear. When project-local runtime state exists, `.opencode/` is canonical. Before answering any question about runtime state paths, read `.opencode/README.md` or `.opencode/overlays.jsonc` if present. Never substitute `.Claude/` unless the runtime context or repo files explicitly say `.Claude/`."
+    },
+    "explore": {
+      "description": "Evidence-gathering lane. Locates files, traces, logs, runtime state, and implementation signals before action is taken.",
+      "steps": 1000,
+      "prompt": "Use this lane to locate relevant files, commands, traces, logs, runtime state, and repo signals. Do not implement fixes or mutate shared state here. Return concise evidence with exact file paths, command outcomes, and the smallest useful shortlist for the plan or build lane."
+    },
+    "summary": {
+      "description": "Synthesis lane. Merges lane outputs into concise handoffs, final reports, and next-step recommendations without reopening exploration.",
+      "steps": 1000,
+      "prompt": "Use this lane to synthesize completed lane outputs into a concise status, handoff, or final user-facing report. Do not reopen exploration or implementation unless the plan or build lane explicitly redelegates another task. Preserve important decisions, validation outcomes, risks, and exact follow-up actions."
+    },
+    "compaction": {
+      "description": "Memory-preservation lane. Compresses state, open questions, active overlays, and evidence so long-running work survives compaction cleanly.",
+      "steps": 1000,
+      "prompt": "Use this lane only to preserve continuity across compaction. Keep unresolved tasks, delegation state, checkpoints, overlays, critical evidence, and next actions intact. Do not start new implementation work or ask the user to continue."
+    },
+    "title": {
+      "description": "Title-only lane. Produces short, informative conversation titles and nothing else.",
+      "steps": 100,
+      "prompt": "Return only a short, informative title. No extra commentary, punctuation flourishes, or analysis."
+    }
+  },
+  "permission": {
+    "edit": "allow",
+    "bash": "allow",
+    "webfetch": "allow",
+    "doom_loop": "allow",
+    "question": "allow",
+    "skill": "allow",
+    "task": "allow",
+    "external_directory": "allow"
+  },
+  "tools": {
+    "*": true
+  },
   "mcp": {
     "ck": {
       "type": "local",
       "command": [
         "bash",
         "-lc",
-        "dir=\"$PWD\"; while [ -n \"$dir\" ] && [ \"$dir\" != \"/\" ]; do if [ -d \"$dir/ai-kb\" ]; then cd \"$dir/ai-kb\" 2>/dev/null && exec ck --serve; fi; next=\"$(dirname \"$dir\")\"; [ \"$next\" = \"$dir\" ] && break; dir=\"$next\"; done; cd \"$HOME/ai-kb\" 2>/dev/null && exec ck --serve; echo \"ck MCP: unable to locate ai-kb\" >&2; exit 1"
+        "dir=\"$PWD\"; while [ -n \"$dir\" ] && [ \"$dir\" != \"/\" ]; do if [ -d \"$dir/ai-kb\" ]; then cd \"$dir/ai-kb\" 2>/dev/null && exec ck --serve; fi; next=\"$(dirname \"$dir\")\"; [ \"$next\" = \"$dir\" ] && break; dir=\"$next\"; done; cd \"$HOME/.config/opencode/ai-kb\" 2>/dev/null && exec ck --serve; cd \"$HOME/ai-kb\" 2>/dev/null && exec ck --serve; echo \"ck MCP: unable to locate ai-kb\" >&2; exit 1"
       ],
       "enabled": true,
       "timeout": 15000
     }
   },
+  "compaction": {
+    "auto": true,
+    "prune": true,
+    "reserved": 256000
+  },
   "experimental": {
-    "disable_paste_summary": true
+    "disable_paste_summary": true,
+    "continue_loop_on_deny": true,
+    "mcp_timeout": 45000
   }
 }

@@ -72,4 +72,7 @@ python3 install_bundle.py --target-home "$tmp_root/home" --uninstall --dry-run
 python3 install_bundle.py --project-dir "$tmp_root/project" --uninstall --uninstall-all --dry-run
 python3 install_bundle.py --target-home "$tmp_root/home" --uninstall --uninstall-all --dry-run
 
+echo "Run Node tests"
+node --test tests/*.mjs
+
 echo "OK"

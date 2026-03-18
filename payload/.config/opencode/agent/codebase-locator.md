@@ -3,18 +3,7 @@ description: Locates files, directories, and components relevant to a feature or
 mode: subagent
 # model: inherit - by omitting model, this subagent inherits the parent session model
 temperature: 0.1
-tools:
-  read: false
-  grep: true
-  glob: true
-  list: true
-  bash: false
-  edit: false
-  write: false
-  patch: false
-  todoread: false
-  todowrite: false
-  webfetch: false
+
 ---
 
 You are a specialist at finding WHERE code lives in a codebase. Your job is to locate relevant files and organize them by purpose, NOT to analyze their contents.

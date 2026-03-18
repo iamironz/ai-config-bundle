@@ -17,7 +17,7 @@ manually scanning or preloading large parts of `~/ai-kb/`.
   - one intent-level query
   - one keyword-refined query based on extracted task terms
 - Manual fallback (`rules/INDEX.md` table scan) is allowed only if ck is unavailable or failing.
-- If fallback is used, explicitly record the ck failure reason in `<rule_context>`.
+- If fallback is used, explicitly record the ck failure reason in `<rule_context>` with the most precise cause available (for example: `tool not exposed in this lane`, `server unavailable`, or `query failed`).
 - If ck is available, do not start with manual directory/index scanning.
 
 ## Search Strategy

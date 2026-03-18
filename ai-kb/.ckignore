@@ -1,0 +1,15 @@
+# Additional exclusions for indexing this KB with ck.
+#
+# ck already applies built-in default exclusions; this file focuses on bundle-specific noise.
+
+# ck index/cache
+.ck/
+.ck_models/
+
+# Bundle installer backups (avoid duplicate content in semantic search)
+*.bak
+*.bak.*
+*.compat.*
+
+# macOS noise
+.DS_Store

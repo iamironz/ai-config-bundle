@@ -1,0 +1,30 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "watcher": {
+    "ignore": [
+      ".opencode/checkpoints/**"
+    ]
+  },
+  "mcp": {
+    "filesystem": {
+      "type": "local",
+      "command": [
+        "bun",
+        "x",
+        "@modelcontextprotocol/server-filesystem",
+        "__REPO_PATH__"
+      ],
+      "enabled": true
+    },
+    "git": {
+      "type": "local",
+      "command": [
+        "uvx",
+        "mcp-server-git",
+        "--repository",
+        "__REPO_PATH__"
+      ],
+      "enabled": true
+    }
+  }
+}

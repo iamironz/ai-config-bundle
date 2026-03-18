@@ -1,21 +1,36 @@
 # AI Config Bundle
 
-This repository ships an installable payload ([`payload/`](payload/)) plus an installer
-([`install_bundle.py`](install_bundle.py)) and wrapper script ([`install.sh`](install.sh)).
+This repository ships an installable payload (`payload/`) plus an installer
+(`install_bundle.py`) and wrapper script (`install.sh`).
+
 It can install:
 
-- A shared knowledge base (KB) under `ai-kb/` (rules, commands, templates)
+- a shared knowledge base (KB) under `ai-kb/` (rules, commands, templates, primary lane docs)
 - Cursor integration (`.cursor/` rules/commands/hooks)
-- OpenCode integration (`.opencode/` commands/agents/plugins + optional `opencode.json` merge)
+- OpenCode integration (`.opencode/` runtime files plus optional `opencode.json` merge)
 
 Useful entrypoints in this repo:
 
-- KB operational loop: [`payload/ai-kb/AGENTS.md`](payload/ai-kb/AGENTS.md)
-- Rules index: [`payload/ai-kb/rules/INDEX.md`](payload/ai-kb/rules/INDEX.md)
-- Commands index: [`payload/ai-kb/commands/INDEX.md`](payload/ai-kb/commands/INDEX.md)
-- Cursor entrypoint: [`payload/.cursor/rules/ai-kb.mdc`](payload/.cursor/rules/ai-kb.mdc)
-- OpenCode entrypoint: [`payload/.config/opencode/AGENTS.md`](payload/.config/opencode/AGENTS.md)
-- Troubleshooting: [`docs/support/troubleshooting.md`](docs/support/troubleshooting.md)
+- KB operational loop: `ai-kb/AGENTS.md`
+- Rules index: `ai-kb/rules/INDEX.md`
+- Commands index: `ai-kb/commands/INDEX.md`
+- OpenCode runtime entrypoint: `payload/.config/opencode/AGENTS.md`
+- OpenCode runtime overview: `payload/.config/opencode/README.md`
+- Troubleshooting: `docs/support/troubleshooting.md`
+
+## Current OpenCode model
+
+The bundle now installs an autonomy-first OpenCode runtime with these defaults:
+
+- `plan` is the default primary lane and acts as the team lead for substantive work.
+- `build` is also a primary lane, but it still stays orchestration-first and only performs shared-state edits after delegated discovery narrows the work.
+- Primary lane prompts are sourced from `ai-kb/agents/*.md` and synced into installed `opencode.json` files during install/reinstall.
+- Installed configs use compact all-tools posture: `tools: {"*": true}`.
+- Installed configs grant unrestricted external directory access: `permission.external_directory: "allow"`.
+- Installed configs grant runtime-critical permissions like `task`, `skill`, `question`, `bash`, `edit`, and `webfetch` as `allow`.
+- Global installs mirror KB content into both `~/ai-kb/` and `~/.config/opencode/ai-kb/`.
+- Project installs rewrite OpenCode runtime paths to repo-local `.opencode/...` locations and keep a repo-local `ai-kb/` copy.
+- Reinstalls migrate older `general` or `orchestrator` agent configs to `plan`.
 
 ## KB domain coverage
 
@@ -31,8 +46,8 @@ Cross-cutting domains include architecture, code quality, security, concurrency,
 
 The installer supports two modes:
 
-- **Project mode (recommended):** install into a single repo (`ai-kb/`, `.cursor/`, `.opencode/`)
-- **Global mode (legacy):** install under a target home directory (`~/ai-kb/`, `~/.cursor/`, `~/.config/opencode/`)
+- **Project mode (recommended):** install into a single repo (`ai-kb/`, `.cursor/`, `.opencode/`, optional `opencode.json` merge)
+- **Global mode:** install under a target home directory (`~/ai-kb/`, `~/.cursor/`, `~/.config/opencode/`)
 
 ## Requirements
 
@@ -47,11 +62,12 @@ when `cargo` is available.
 ## Optional: ck semantic KB search (MCP)
 
 This bundle can register the `ck` MCP server to index `ai-kb/` only and use semantic/hybrid
-search for KB retrieval (instead of manually scanning the KB).
+search for KB retrieval instead of manually scanning the KB.
 
 - Install `ck` (recommended): `cargo install ck-search`
 - Cursor: installs/merges `.cursor/mcp.json` with an MCP server named `ck`
 - OpenCode: installs/merges `opencode.json` with an MCP server named `ck`
+- The portable `ck` launcher searches, in order: repo-local `ai-kb/`, mirrored `~/.config/opencode/ai-kb/`, then `~/ai-kb/`
 - Index freshness: semantic/hybrid searches update delta automatically when KB files change (no file watcher needed)
 - Optional pre-index: `cd ai-kb && ck --index .` (creates `ai-kb/.ck/`, ignored by `ai-kb/.gitignore`)
 - The payload includes `ai-kb/.ckignore` and `ai-kb/.gitignore` to avoid indexing bundle backups and committing ck cache
@@ -92,81 +108,30 @@ Install:
 ./install.sh --target-home /home/newuser
 ```
 
-## Uninstall / rollback
-
-Uninstall removes bundle-managed files and restores the latest matching
-`*.bak.<stamp>` backup when present.
-
-Project mode rollback:
-
-```bash
-./install.sh --project-dir /path/to/repo --uninstall
-./install.sh --project-dir /path/to/repo --uninstall --dry-run
-```
-
-Global mode rollback:
-
-```bash
-./install.sh --uninstall
-./install.sh --target-home /home/newuser --uninstall --dry-run
-```
-
-Force cleanup (managed roots):
-
-```bash
-./install.sh --project-dir /path/to/repo --uninstall --uninstall-all
-./install.sh --target-home /home/newuser --uninstall --uninstall-all --dry-run
-```
-
-`--uninstall-all` removes full managed roots recursively (`ai-kb`, `.cursor`,
-`.opencode` / `.config/opencode`) when no root backup exists. Use it only when
-you want a full wipe of bundle-managed areas.
-
-## Flags
-
-All flags are implemented by [`install_bundle.py`](install_bundle.py) and are forwarded by
-[`install.sh`](install.sh).
-
-| Flag | Mode | Meaning |
-|------|------|---------|
-| `--project-dir <path>` | project | Install repo-local `ai-kb/`, `.cursor/`, `.opencode/` into this directory |
-| `--project-full` | project | Enable `--include-machine-config` and disable `--preserve-existing` for one-click setup |
-| `--include-machine-config` | project | Also install `opencode.json` and `.opencode/dcp.jsonc` |
-| `--target-home <path>` | global | Install under this home directory (default: current `$HOME`) |
-| `--uninstall` | both | Roll back bundle-managed files (restore backups when available, otherwise remove managed files) |
-| `--uninstall-all` | both | Force cleanup of managed roots; requires `--uninstall` |
-| `--preserve-existing` | both | Do not overwrite conflicting destination files |
-| `--install-deps` | both | Try to install missing tools using brew/apt-get |
-| `--dry-run` | both | Print planned actions without writing files |
-
 ## What gets installed
 
 ### Project mode
 
-- KB: `ai-kb/` (entrypoints: `ai-kb/AGENTS.md`, `ai-kb/rules/INDEX.md`, `ai-kb/commands/INDEX.md`)
-- Cursor: `.cursor/commands/`, `.cursor/rules/` (entrypoint: `.cursor/rules/ai-kb.mdc`), `.cursor/hooks/`, `.cursor/hooks.json`, `.cursor/mcp.json`
+- KB: `ai-kb/` (entrypoints: `ai-kb/AGENTS.md`, `ai-kb/rules/INDEX.md`, `ai-kb/commands/INDEX.md`, `ai-kb/agents/*.md`)
+- Cursor: `.cursor/commands/`, `.cursor/rules/`, `.cursor/hooks/`, `.cursor/hooks.json`, `.cursor/mcp.json`
 - OpenCode:
   - `.opencode/AGENTS.md`
   - `.opencode/commands/`
   - `.opencode/agents/`
   - `.opencode/plugins/`
-
-OpenCode supports singular directory names for backwards compatibility, but the installer avoids
-creating both. If singular directories already exist, it migrates their contents into the
-canonical plural directories to prevent duplicate loading.
-
-If `--include-machine-config` (or `--project-full`):
-
-- `opencode.json` (created or merged with minimal `instructions` entrypoints; avoids preloading `ai-kb/rules/**/*.md`)
-- `.opencode/dcp.jsonc`
-
-Project installs do not create or modify repo-root `AGENTS.md`.
+  - `.opencode/runtime/`
+  - `.opencode/overlays/`
+  - `.opencode/scripts/`
+  - `.opencode/memory/`
+- If `--include-machine-config` (or `--project-full`):
+  - `opencode.json` (created or merged)
+  - `.opencode/dcp.jsonc`
 
 ### Global mode
 
-- KB: `<target-home>/ai-kb/` (usually `~/ai-kb/`)
-- Cursor: `<target-home>/.cursor/**` (usually `~/.cursor/**`)
-- OpenCode: `<target-home>/.config/opencode/**` (usually `~/.config/opencode/**`)
+- KB: `<target-home>/ai-kb/` and mirrored `<target-home>/.config/opencode/ai-kb/`
+- Cursor: `<target-home>/.cursor/**`
+- OpenCode: `<target-home>/.config/opencode/**`
 
 ## Overwrites and backups
 
@@ -180,11 +145,12 @@ Project installs do not create or modify repo-root `AGENTS.md`.
 ## Path rewriting (project mode)
 
 When installing into a repo, the installer rewrites home-style paths inside text files to keep
-docs/wrappers actionable:
+installed docs and wrappers actionable:
 
 - `~/ai-kb` -> `ai-kb`
 - `~/.cursor` -> `.cursor`
 - `~/.config/opencode` -> `.opencode`
+- `~/.config/opencode/ai-kb` -> `ai-kb`
 
 ## KB enrichment analyzers (optional)
 
@@ -198,19 +164,9 @@ Recommendation queues:
 - Project: `.cursor/kb-recommendations/*.md`, `.opencode/kb-recommendations/*.md`
 - Global fallback (when repo-local dirs are absent): `~/.cursor/kb-recommendations/*.md`, `~/.config/opencode/kb-recommendations/*.md`
 
-### Analyzer environment variables
-
-- `AI_KB_CURSOR_MODEL`: optional Cursor model id for analysis (example: `gpt-5.2`, `sonnet-4`)
-- `AI_KB_ANALYZER_MODEL`: legacy alias for `AI_KB_CURSOR_MODEL` when value does not contain `/`
-- `AI_KB_ANALYZER_INTERNAL`: reserved sentinel used internally to prevent hook recursion
-- `AI_KB_MAX_HISTORY_CHARS`: max transcript chars analyzed (default `120000`)
-- `AI_KB_MIN_HISTORY_CHARS`: minimum history size before analysis (default `800`)
-- `AI_KB_ANALYZER_TIMEOUT_SEC`: Cursor analyzer timeout in seconds (default `45`)
-- `AI_KB_RECOMMENDATION_SCAN_LIMIT`: max recent recommendation docs scanned for dedupe (default `300`)
-
 ## Troubleshooting
 
-See [`docs/support/troubleshooting.md`](docs/support/troubleshooting.md).
+See `docs/support/troubleshooting.md`.
 
 ## Development
 
@@ -220,20 +176,12 @@ Run the repo checks and smoke tests:
 ./scripts/run-tests.sh
 ```
 
-See [`CONTRIBUTING.md`](CONTRIBUTING.md) for contribution workflow and expectations.
-
-## Contributing
-
-See [`CONTRIBUTING.md`](CONTRIBUTING.md).
-
-## Security
-
-See [`.github/SECURITY.md`](.github/SECURITY.md).
+See `CONTRIBUTING.md` for contribution workflow and expectations.
 
 ## License
 
-MIT. See [`LICENSE`](LICENSE).
+MIT. See `LICENSE`.
 
 ## Changelog
 
-See [`CHANGELOG.md`](CHANGELOG.md).
+See `CHANGELOG.md`.

@@ -11,17 +11,17 @@
   "showUpdateToasts": true,
   // Only run AI analysis with session model or configured model (disables fallback models)
   "strictModelSelection": false,
-  // AI analysis strategies (deduplication runs automatically on every request)
+  // Continuous analyzer lane (deduplication still runs automatically on every request)
   "strategies": {
-    // Strategies to run when session goes idle
+    // Primary background analyzer
     "onIdle": ["ai-analysis"],
-    // Strategies to run when AI calls prune tool
+    // Fallback analyzer when tool-heavy sessions need cleanup support
     "onTool": ["ai-analysis"]
   },
   // Summary display: "off", "minimal", or "detailed"
-  "pruning_summary": "detailed",
+  "pruning_summary": "minimal",
   // How often to nudge the AI to prune (every N tool results, 0 = disabled)
-  "nudge_freq": 10
+  "nudge_freq": 8
   // Additional tools to protect from pruning
   // "protectedTools": ["bash"]
 }

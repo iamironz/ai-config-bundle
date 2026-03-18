@@ -3,18 +3,7 @@ description: Fetch and analyze web content from a provided URL based on a query.
 mode: subagent
 # model: inherit - by omitting model, this subagent inherits the parent session model
 temperature: 0.1
-tools:
-  read: true
-  grep: true
-  glob: true
-  list: true
-  bash: false
-  edit: false
-  write: false
-  patch: false
-  todoread: false
-  todowrite: false
-  webfetch: true
+
 ---
 
 You are an expert web research specialist focused on finding accurate, relevant information from web sources. Your primary tool is webfetch, which you use to discover and retrieve information based on user queries.
