@@ -8,6 +8,7 @@ import test from "node:test"
 import { fileURLToPath, pathToFileURL } from "node:url"
 
 const REPO_ROOT = fileURLToPath(new URL("..", import.meta.url))
+const PYTHON = process.platform === "win32" ? "python" : "python3"
 
 function run(command, args, cwd = REPO_ROOT) {
   return new Promise((resolve, reject) => {
@@ -137,7 +138,7 @@ test("home install writes the runtime bundle under the target home", async () =>
 
   try {
     await mkdir(targetHome, { recursive: true })
-    await run("python3", ["install_bundle.py", "--target-home", targetHome])
+    await run(PYTHON, ["install_bundle.py", "--target-home", targetHome])
     const resolvedTargetHome = realpathSync(targetHome)
 
     const installedConfig = JSON.parse(
@@ -198,7 +199,7 @@ test("project install writes a repo-local runtime-aware opencode config", async 
 
   try {
     await mkdir(projectDir, { recursive: true })
-    await run("python3", ["install_bundle.py", "--project-dir", projectDir])
+    await run(PYTHON, ["install_bundle.py", "--project-dir", projectDir])
 
     const installedConfig = JSON.parse(await readFile(join(projectDir, "opencode.json"), "utf8"))
     assert.equal(installedConfig.default_agent, "plan")
@@ -314,7 +315,7 @@ test("home install normalizes legacy OpenCode ck paths", async () => {
       ) + "\n",
     )
 
-    await run("python3", ["install_bundle.py", "--target-home", targetHome])
+    await run(PYTHON, ["install_bundle.py", "--target-home", targetHome])
 
     const installedConfig = JSON.parse(
       await readFile(join(targetHome, ".config/opencode/opencode.json"), "utf8"),
@@ -344,7 +345,7 @@ test("project install preserves existing config posture while adding subagent-cr
       ) + "\n",
     )
 
-    await run("python3", ["install_bundle.py", "--project-dir", projectDir])
+    await run(PYTHON, ["install_bundle.py", "--project-dir", projectDir])
 
     const installedConfig = JSON.parse(await readFile(join(projectDir, "opencode.json"), "utf8"))
     assert.equal(installedConfig.permission?.edit, "allow")
@@ -388,7 +389,7 @@ test("reinstall normalizes runtime-owned agent prompts in existing config", asyn
       ) + "\n",
     )
 
-    await run("python3", ["install_bundle.py", "--project-dir", projectDir])
+    await run(PYTHON, ["install_bundle.py", "--project-dir", projectDir])
 
     const installedConfig = JSON.parse(await readFile(join(projectDir, "opencode.json"), "utf8"))
     assert.match(installedConfig.agent.plan.prompt, /For every substantive task, first load `command-parity-router`/);
@@ -450,7 +451,7 @@ test("project install normalizes legacy plugin and Cursor ck paths", async () =>
       ) + "\n",
     )
 
-    await run("python3", ["install_bundle.py", "--project-dir", projectDir])
+    await run(PYTHON, ["install_bundle.py", "--project-dir", projectDir])
 
     const installedConfig = JSON.parse(await readFile(join(projectDir, "opencode.json"), "utf8"))
     assertPortableOpencodeCkEntry(installedConfig)

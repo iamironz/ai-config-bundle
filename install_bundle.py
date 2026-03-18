@@ -754,6 +754,11 @@ def merge_cursor_mcp_file(
     state.planned_files.append((src, dst))
 
 
+def forward_slash(path_str: str) -> str:
+    """Normalize Windows backslashes to forward slashes for JSON-safe paths."""
+    return str(path_str).replace("\\", "/")
+
+
 def portable_ck_command() -> str:
     return (
         'dir="$PWD"; '

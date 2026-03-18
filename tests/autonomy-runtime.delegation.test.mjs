@@ -7,6 +7,7 @@ import test from "node:test"
 import { pathToFileURL } from "node:url"
 
 const REPO_ROOT = new URL("..", import.meta.url).pathname
+const PYTHON = process.platform === "win32" ? "python" : "python3"
 
 function run(command, args, cwd = REPO_ROOT) {
   return new Promise((resolve, reject) => {
@@ -82,7 +83,7 @@ async function withInstalledProject(runTest) {
     await mkdir(projectDir, { recursive: true })
     await mkdir(fakeHome, { recursive: true })
     process.env.HOME = fakeHome
-    await run("python3", ["install_bundle.py", "--project-dir", projectDir])
+    await run(PYTHON, ["install_bundle.py", "--project-dir", projectDir])
     const plugin = await loadPlugin(projectDir)
     await runTest({ plugin, projectDir, fakeHome })
   } finally {
